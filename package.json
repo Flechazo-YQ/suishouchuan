@@ -1,0 +1,12 @@
+{
+  "name": "imagebridge-project",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "desktop:build": "npm --prefix apps/desktop run build",
+    "desktop:start": "npm --prefix apps/desktop start",
+    "desktop:package": "npm --prefix apps/desktop run package",
+    "test": "npm --prefix apps/desktop test && npm run mobile:test",
+    "mobile:test": "node apps/desktop/node_modules/tsx/dist/cli.mjs --test apps/mobile/test/*.test.ts"
+  }
+}
