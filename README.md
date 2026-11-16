@@ -31,13 +31,12 @@ Android 最低声明支持 Android 8（API 26），当前真机验收设备为 A
 2. **手机**：点顶部设备名称或右上角扫码图标 →「扫描配对二维码」，对准电脑屏幕。
 3. **手机**：核对弹窗中的电脑名称并确认。成功后，首页左上角会显示已配对电脑；以后默认发送到它。
 
-<table>
-  <tr><th width="62%">电脑：点击「配对手机」</th><th width="38%">手机：点「扫描配对二维码」</th></tr>
-  <tr>
-    <td><img src="docs/images/desktop-pairing.png" alt="Windows 随手传的配对二维码窗口，左侧为配对手机按钮" width="650" /></td>
-    <td><img src="docs/images/phone-pairing.png" alt="Android 连接电脑面板，下方为扫描配对二维码按钮，设备信息已隐藏" width="360" /></td>
-  </tr>
-</table>
+**电脑点击「配对手机」 → 手机点「扫描配对二维码」**（点击图片可查看大图）：
+
+<p>
+  <a href="docs/images/desktop-pairing.png"><img src="docs/images/desktop-pairing.png" alt="Windows 随手传的配对二维码窗口，左侧为配对手机按钮" width="520" /></a>
+  <a href="docs/images/phone-pairing.png"><img src="docs/images/phone-pairing.png" alt="Android 连接电脑面板，下方为扫描配对二维码按钮，设备信息已隐藏" width="300" /></a>
+</p>
 
 **请扫描自己电脑 App 中显示的二维码。上图是演示码，不能用于配对。** 配对只需做一次，不用每拍一张都重新扫码。
 
@@ -47,13 +46,12 @@ Android 最低声明支持 Android 8（API 26），当前真机验收设备为 A
 2. 查看照片：不满意点左上「×」重拍，满意点右上绿色「✓」。
 3. 在弹窗中核对目标电脑，点「确认上传」。等待手机或电脑提示「已复制」。
 
-<table>
-  <tr><th>① 轻点白色快门拍照</th><th>② 点右上绿色勾，进入上传确认</th></tr>
-  <tr>
-    <td><img src="docs/images/phone-camera.png" alt="Android 拍摄首页，含九宫格、拍摄和连拍模式、底部白色快门" width="290" /></td>
-    <td><img src="docs/images/phone-preview.png" alt="拍照后的大图预览，左上叉号重拍，右上绿色勾确认" width="290" /></td>
-  </tr>
-</table>
+**① 轻点白色快门拍照 → ② 点右上绿色勾，进入上传确认：**
+
+<p>
+  <a href="docs/images/phone-camera.png"><img src="docs/images/phone-camera.png" alt="Android 拍摄首页，含九宫格、拍摄和连拍模式、底部白色快门" width="290" /></a>
+  <a href="docs/images/phone-preview.png"><img src="docs/images/phone-preview.png" alt="拍照后的大图预览，左上叉号重拍，右上绿色勾确认" width="290" /></a>
+</p>
 
 <img src="docs/images/phone-confirm.png" alt="发送照片确认弹窗，点击右侧确认上传按钮即可发送到配对电脑" width="460" />
 
