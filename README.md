@@ -8,18 +8,74 @@
 
 [下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md)
 
-## 下载与安装
+## 看图上手：安装 → 扫码配对 → 拍照上传 → 粘贴到 AI
+
+第一次安装并配对后，日常只需 **手机拍照并确认 → 电脑按 Ctrl+V**。
+
+### 1. 电脑装 EXE，手机装 APK
 
 | 设备 | 下载文件 | 安装后做什么 |
 | --- | --- | --- |
 | Windows x64 电脑 | [ImageBridge-Setup-0.4.8.exe](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.8/ImageBridge-Setup-0.4.8.exe) | 安装并打开「随手传」，留在系统托盘 |
 | Android arm64 手机 | [ImageBridge-0.4.8-android-arm64.apk](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.8/ImageBridge-0.4.8-android-arm64.apk) | 用手机浏览器下载，按系统提示允许该来源安装 |
 
-手机和电脑连接到可以互通的局域网。电脑点击「配对手机」，手机点击顶部设备栏 →「扫描配对二维码」，核对电脑名称后确认。配对一次即可，之后默认发到这台电脑。
+电脑安装完成后打开「随手传」，保持托盘运行；手机安装完成后打开 App，按提示允许相机权限。让两端连接到可互通的局域网，例如连接同一个家庭 Wi-Fi。电脑端应显示绿色的「正在接收」。
 
 Windows 安装包也内置 APK，可通过电脑配对面板中的局域网下载地址安装。发布页提供 SHA-256 校验文件；下载源码 ZIP 不是安装软件。
 
 Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。iPhone、macOS 和 Linux 接收端暂未提供。
+
+### 2. 电脑显示二维码，手机扫一扫
+
+1. **电脑**：点击左侧「＋ 配对手机」，出现二维码。
+2. **手机**：点顶部设备名称或右上角扫码图标 →「扫描配对二维码」，对准电脑屏幕。
+3. **手机**：核对弹窗中的电脑名称并确认。成功后，首页左上角会显示已配对电脑；以后默认发送到它。
+
+<table>
+  <tr><th width="62%">电脑：点击「配对手机」</th><th width="38%">手机：点「扫描配对二维码」</th></tr>
+  <tr>
+    <td><img src="docs/images/desktop-pairing.png" alt="Windows 随手传的配对二维码窗口，左侧为配对手机按钮" width="650" /></td>
+    <td><img src="docs/images/phone-pairing.png" alt="Android 连接电脑面板，下方为扫描配对二维码按钮，设备信息已隐藏" width="360" /></td>
+  </tr>
+</table>
+
+**请扫描自己电脑 App 中显示的二维码。上图是演示码，不能用于配对。** 配对只需做一次，不用每拍一张都重新扫码。
+
+### 3. 手机拍照，预览后确认上传
+
+1. 选择「拍摄」模式，轻点底部白色圆形快门。
+2. 查看照片：不满意点左上「×」重拍，满意点右上绿色「✓」。
+3. 在弹窗中核对目标电脑，点「确认上传」。等待手机或电脑提示「已复制」。
+
+<table>
+  <tr><th>① 轻点白色快门拍照</th><th>② 点右上绿色勾，进入上传确认</th></tr>
+  <tr>
+    <td><img src="docs/images/phone-camera.png" alt="Android 拍摄首页，含九宫格、拍摄和连拍模式、底部白色快门" width="290" /></td>
+    <td><img src="docs/images/phone-preview.png" alt="拍照后的大图预览，左上叉号重拍，右上绿色勾确认" width="290" /></td>
+  </tr>
+</table>
+
+<img src="docs/images/phone-confirm.png" alt="发送照片确认弹窗，点击右侧确认上传按钮即可发送到配对电脑" width="460" />
+
+电脑收到后会显示照片和「已复制」，并短暂弹出不抢焦点的小预览。**不需要再去微信下载图片，也不需要再点一次「重新复制」。**
+
+<img src="docs/images/desktop-received.png" alt="Windows 接收页面，照片卡片显示已复制，并提供重新复制和另存为" width="800" />
+
+想一次发几张？切到「连拍」，连续拍摄后点缩略图查看整组，右上点 **「确认并发送」** 即可；相册多选则在确认选择后自动发送。
+
+### 4. 回到电脑 AI 输入框，按 Ctrl+V
+
+1. 在 **Codex 或其他支持图片粘贴的 AI 输入框** 中点一下，让光标进入输入框。
+2. 按 **Ctrl+V**。看到图片附件或缩略图，就说明图片已放入输入框。
+3. 输入问题，例如：**「请看看这张桌面照片，给我几个整理线缆的建议。」** 核对附件后，再自行发送给 AI。
+
+下面是 Codex 实测粘贴后的输入框局部：图集显示为多张独立附件，横向滚动可查看后面的图片。
+
+<img src="docs/images/ai-paste.png" alt="Codex 输入框中已经出现多张独立图片附件，当前可见编号01至06的一部分" width="800" />
+
+单张照片同样按一次 Ctrl+V；给 Word/WPS 配图时，把光标放在文档需要插图的位置再粘贴。若目标软件不接受图片粘贴，可在电脑端点「另存为」，再使用它的插入图片功能。随手传不会自动提交 AI 对话。
+
+<sub>手机为 0.4.8 真机截图，私人设备信息已按授权裁剪或遮挡；电脑为 0.4.8 界面搭配演示数据；Codex 为实际粘贴验收截图的输入区。详见 [截图说明](docs/images/README.md)。</sub>
 
 ## 原来怎么做，用了以后怎么做
 
