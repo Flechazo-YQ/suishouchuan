@@ -3,12 +3,7 @@ import Security
 
 struct DeviceStore {
     private static var accessGroup: String? {
-        #if targetEnvironment(simulator)
-        // Unsigned simulator builds have no provisioned shared Keychain group.
-        return nil
-        #else
         return Bundle.main.object(forInfoDictionaryKey: "CommandVKeychainGroup") as? String
-        #endif
     }
     var selectedId: String {
         get { (try? readText("selectedDevice")) ?? "" }
