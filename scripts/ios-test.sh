@@ -29,14 +29,17 @@ xcodebuild build-for-testing -project apps/ios/CommandV.xcodeproj -scheme Comman
   CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES \
   'CODE_SIGN_LOCAL_EXECUTION_IDENTITY=Ad Hoc' PROVISIONING_PROFILE_SPECIFIER= \
   AppIdentifierPrefix=65635WN76L. 2>&1 | tee build/ios-build.log
-# Keychain access must use the same entitlement in tests and the installed app.
-codesign -d --entitlements :- build/DerivedData/Build/Products/Debug-iphonesimulator/CommandV.app > build/simulator-entitlements.plist
+# Simulator entitlements are linked into Mach-O, separate from the ad-hoc signature.
 python3 - <<'PY'
-import plistlib
-root='build/DerivedData/Build/Products/Debug-iphonesimulator/CommandV.app'
-info=plistlib.load(open(root+'/Info.plist','rb'))
-entitlements=plistlib.load(open('build/simulator-entitlements.plist','rb'))
-assert info['CommandVKeychainGroup'] in entitlements.get('keychain-access-groups',[]), entitlements
+import plistlib, pathlib
+base=pathlib.Path('build/DerivedData/Build')
+for target, product in [('CommandV','CommandV.app'),('CommandVShare','CommandVShare.appex')]:
+    root=base/'Products/Debug-iphonesimulator'/product
+    info=plistlib.loads((root/'Info.plist').read_bytes())
+    raw=(base/'Intermediates.noindex/CommandV.build/Debug-iphonesimulator'/(target+'.build')/(product+'-Simulated.xcent')).read_bytes()
+    entitlements=plistlib.loads(raw)
+    assert info['CommandVKeychainGroup'] in entitlements.get('keychain-access-groups',[]), entitlements
+    assert raw in (root/info['CFBundleExecutable']).read_bytes(), 'Simulator entitlement section missing'
 PY
 xcodebuild test-without-building -project apps/ios/CommandV.xcodeproj -scheme CommandV \
   -destination "platform=iOS Simulator,id=$DEVICE_ID" -parallel-testing-enabled NO \

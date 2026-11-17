@@ -110,7 +110,12 @@ struct ContentView: View {
             defer { model.busy = false }
             do {
                 let item: MediaItem
-                switch value { case .image(let image): item = try MediaImporter.cameraImage(image, into: directory); case .video(let url): item = try await MediaImporter.video(url, into: directory) }
+                switch value {
+                case .image(let image): item = try MediaImporter.cameraImage(image, into: directory)
+                case .video(let url):
+                    defer { try? FileManager.default.removeItem(at: url) }
+                    item = try await MediaImporter.video(url, into: directory)
+                }
                 do { try model.append([item]); model.message = "预览后点发送到电脑" }
                 catch { try? FileManager.default.removeItem(at: item.url); throw error }
             } catch { model.report(error) }
