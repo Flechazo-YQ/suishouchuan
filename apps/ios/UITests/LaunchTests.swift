@@ -82,11 +82,16 @@ final class LaunchTests: XCTestCase {
             XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "长按机身操作按钮")).firstMatch.waitForExistence(timeout: 3))
             attach(app, "CommandV Action button instructions")
             actionButtonGuide.tap()
-            for _ in 0..<3 where !app.buttons["选择录屏视频"].isHittable { app.swipeUp() }
+            app.swipeUp()
+            XCTAssertFalse(app.staticTexts["系统截图"].exists)
+            XCTAssertFalse(app.staticTexts["系统录屏"].exists)
+            XCTAssertFalse(app.buttons["选择截图"].exists)
+            XCTAssertFalse(app.buttons["选择录屏视频"].exists)
+            attach(app, "CommandV capture-only screen")
+        } else {
+            XCTAssertTrue(app.buttons["选择截图"].waitForExistence(timeout: 3))
+            XCTAssertTrue(app.buttons["选择录屏视频"].exists)
         }
-        XCTAssertTrue(app.buttons["选择截图"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["选择录屏视频"].exists)
-        attach(app, "CommandV screen share guide")
         app.buttons["完成"].tap()
         XCTAssertTrue(app.buttons["相册"].waitForExistence(timeout: 3))
     }

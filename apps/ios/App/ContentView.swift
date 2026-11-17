@@ -16,7 +16,7 @@ struct ContentView: View {
     @State private var showScanner = false
     @State private var scannerPending = false
     @State private var libraryPending = false
-    @State private var libraryKind: LibraryPicker.Kind = .images
+    @State private var libraryKind: LibraryPicker.Kind = .all
     @State private var pairingText = ""
     @State private var pendingPairingText: String?
     @State private var invitation: Invitation?
@@ -190,7 +190,7 @@ struct ContentView: View {
             CaptureModeTabs(burst: $burst, locked: locked)
             Text(camera.recording ? "松手完成 · 最长 30 秒" : burst ? "连续点按拍照 · 最多 10 张" : "轻触拍照，按住录像").font(.system(size: 12)).foregroundColor(.gray)
             HStack {
-                Button { libraryKind = .images; showLibrary = true } label: { Image(systemName: "photo.on.rectangle.angled").font(.system(size: 27)).frame(width: 64, height: 64) }
+                Button { libraryKind = .all; showLibrary = true } label: { Image(systemName: "photo.on.rectangle.angled").font(.system(size: 27)).frame(width: 64, height: 64) }
                     .accessibilityLabel("相册").disabled(locked)
                 Spacer()
                 ShutterButton(burst: burst, recording: camera.recording, enabled: (camera.ready || testCamera) && !model.busy && !camera.capturing && !camera.finishing && (!burst || model.items.count < 10), photo: takePhoto, beginVideo: camera.startRecording, endVideo: camera.stopRecording)
@@ -272,16 +272,16 @@ struct ContentView: View {
                             showScreenTools = false
                             syncDraftPresentation(review: true)
                         }
+                    } else {
+                        Label("系统截图", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
+                        Text("用 iPhone 系统截屏后，点分享 → CommandV → 确认发送。连续截好几张，也可以在下方选取后一起发送。").foregroundColor(.secondary)
+                        Button("选择截图") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
                         Divider()
+                        Label("系统录屏", systemImage: "record.circle").font(.title3.weight(.semibold))
+                        Text("在控制中心开始屏幕录制，结束后在「照片」中分享给 CommandV，或在下方选取。每段最多 30 秒。").foregroundColor(.secondary)
+                        Button("选择录屏视频") { openScreenLibrary(.videos) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
+                        Text("选择完成后会发送到当前电脑，原来的连拍组会保留。").font(.footnote).foregroundColor(.secondary)
                     }
-                    Label("系统截图", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
-                    Text("用 iPhone 系统截屏后，点分享 → CommandV → 确认发送。连续截好几张，也可以在下方选取后一起发送。").foregroundColor(.secondary)
-                    Button("选择截图") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
-                    Divider()
-                    Label("系统录屏", systemImage: "record.circle").font(.title3.weight(.semibold))
-                    Text("在控制中心开始屏幕录制，结束后在「照片」中分享给 CommandV，或在下方选取。每段最多 30 秒。").foregroundColor(.secondary)
-                    Button("选择录屏视频") { openScreenLibrary(.videos) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
-                    Text("选择完成后会发送到当前电脑，原来的连拍组会保留。").font(.footnote).foregroundColor(.secondary)
                 }.padding(24)
             }.navigationTitle("截屏 / 录屏").navigationBarTitleDisplayMode(.inline).toolbar { Button("完成") { showScreenTools = false } }
         }.preferredColorScheme(.dark)
