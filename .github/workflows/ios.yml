@@ -1,7 +1,7 @@
 name: CommandV iPhone
 on:
   push:
-    branches: [main, codex/flechazo-yq]
+    branches: [codex/flechazo-yq]
     paths: ['apps/ios/**', 'scripts/ios-*.sh', '.github/workflows/ios.yml']
   workflow_dispatch:
     inputs:
@@ -11,6 +11,7 @@ on:
         default: false
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: commandv-ios-${{ github.ref }}
   cancel-in-progress: false
@@ -25,7 +26,19 @@ jobs:
           xcodebuild -version
           brew install xcodegen
           xcodegen generate --spec apps/ios/project.yml
+      - name: Require successful tests for this commit
+        if: github.event_name == 'workflow_dispatch' && inputs.upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ios.yml/runs?head_sha=$GITHUB_SHA&status=completed&per_page=100" > "$RUNNER_TEMP/commandv-runs.json"
+          python3 - <<'PY'
+          import json, os
+          runs=json.load(open(os.environ['RUNNER_TEMP']+'/commandv-runs.json'))['workflow_runs']
+          assert any(r['head_sha']==os.environ['GITHUB_SHA'] and r['event']=='push' and r['conclusion']=='success' for r in runs), 'This exact commit must pass the iPhone CI tests before upload'
+          PY
       - name: Build and test on iPhone simulator
+        if: github.event_name != 'workflow_dispatch' || !inputs.upload
         run: bash scripts/ios-test.sh
       - name: Archive and upload
         if: github.event_name == 'workflow_dispatch' && inputs.upload

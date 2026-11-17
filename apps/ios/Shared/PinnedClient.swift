@@ -78,7 +78,8 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
         guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
               let trust = challenge.protectionSpace.serverTrust,
-              let certificate = SecTrustGetCertificateAtIndex(trust, 0),
+              let certificates = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
+              let certificate = certificates.first,
               digestData(SecCertificateCopyData(certificate) as Data) == fingerprint else {
             completionHandler(.cancelAuthenticationChallenge, nil); return
         }

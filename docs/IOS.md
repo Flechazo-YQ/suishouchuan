@@ -27,7 +27,7 @@ bash scripts/ios-test.sh
 
 测试脚本用于 GitHub macOS runner，需要 `RUNNER_TEMP`。它先启动实际接收服务验证 Swift 的配对、证书固定、单图、图集和重试，再运行 iPhone 模拟器单元测试与界面测试。测试中的剪贴板回调检查已接收图片，不代替 Windows 系统剪贴板和 iPhone 真机验收。
 
-云端工作流为 `.github/workflows/ios.yml`。开发分支和主线涉及 iOS 的推送执行测试；手动运行并勾选 `upload` 才会签名上传 TestFlight。不会自动提交 App Store 审核或正式上架。
+云端工作流为 `.github/workflows/ios.yml`。开发分支涉及 iOS 的推送执行测试；通过后合入主线，手动运行并勾选 `upload` 才会签名上传 TestFlight。上传前会核对同一个提交已有成功测试记录，不重复执行同一轮测试。不会自动提交 App Store 审核或正式上架。
 
 仓库 Secrets：`APPLE_CERTIFICATE_P12`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_PROFILE_APP`、`APPLE_PROFILE_SHARE`、`APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`。P12 与两个描述文件使用 Base64，API 私钥保留 PEM 文本。密钥不得写入源码或日志。主应用 Bundle ID 为 `com.flechazoyq.commandv`，分享扩展为 `com.flechazoyq.commandv.share`。
 
