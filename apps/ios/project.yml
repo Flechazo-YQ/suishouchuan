@@ -1,0 +1,112 @@
+name: CommandV
+options:
+  bundleIdPrefix: com.flechazoyq
+  deploymentTarget:
+    iOS: '15.1'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    DEVELOPMENT_TEAM: 65635WN76L
+    MARKETING_VERSION: '1.0'
+    CURRENT_PROJECT_VERSION: '1'
+    TARGETED_DEVICE_FAMILY: '1'
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: Apple Distribution
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+targets:
+  CommandV:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared
+        excludes: [CommandV.entitlements]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flechazoyq.commandv
+        PROVISIONING_PROFILE_SPECIFIER: CommandV AppStore
+        CODE_SIGN_ENTITLEMENTS: Shared/CommandV.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: CommandV
+        CFBundleDevelopmentRegion: zh_CN
+        CFBundleLocalizations: [zh-Hans, en]
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [imagebridge]
+            CFBundleURLName: com.flechazoyq.commandv.pair
+        CommandVKeychainGroup: $(AppIdentifierPrefix)com.flechazoyq.commandv
+        NSCameraUsageDescription: 拍摄要发送到电脑的照片、视频，以及扫描电脑配对二维码。
+        NSMicrophoneUsageDescription: 为发送到电脑的视频录制声音。
+        NSLocalNetworkUsageDescription: 通过同一 Wi-Fi 查找已配对的电脑并直接发送照片和视频。
+        NSBonjourServices: [_imagebridge._tcp]
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    dependencies:
+      - target: CommandVShare
+  CommandVShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Share
+      - path: Shared
+        excludes: [CommandV.entitlements]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flechazoyq.commandv.share
+        PROVISIONING_PROFILE_SPECIFIER: CommandV Share AppStore
+        CODE_SIGN_ENTITLEMENTS: Shared/CommandV.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: Share/Info.plist
+      properties:
+        CFBundleDisplayName: CommandV
+        CommandVKeychainGroup: $(AppIdentifierPrefix)com.flechazoyq.commandv
+        NSLocalNetworkUsageDescription: 将你选中的素材通过局域网发送到已配对电脑。
+        NSBonjourServices: [_imagebridge._tcp]
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsImageWithMaxCount: 10
+              NSExtensionActivationSupportsMovieWithMaxCount: 1
+  CommandVTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: CommandV
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: ''
+        PROVISIONING_PROFILE_SPECIFIER: ''
+  CommandVUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: CommandV
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: ''
+        PROVISIONING_PROFILE_SPECIFIER: ''
+schemes:
+  CommandV:
+    build:
+      targets:
+        CommandV: all
+    test:
+      targets: [CommandVTests, CommandVUITests]
+      gatherCoverageData: true

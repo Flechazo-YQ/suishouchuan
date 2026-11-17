@@ -9,6 +9,11 @@ apps/desktop/resources/ffprobe.exe
 *.keystore
 *.pem
 *.p12
+*.p8
+*.mobileprovision
+*.xcodeproj/
+apps/ios/App/Info.plist
+apps/ios/Share/Info.plist
 .env
 .env.*
 signing.properties
