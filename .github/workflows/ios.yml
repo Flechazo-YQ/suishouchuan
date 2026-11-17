@@ -2,7 +2,7 @@ name: CommandV iPhone
 on:
   push:
     branches: [codex/flechazo-yq]
-    paths: ['apps/ios/**', 'scripts/ios-*', '.github/workflows/ios.yml']
+    paths: ['apps/ios/**', 'apps/desktop/**', 'package.json', 'scripts/ios-*', '.github/workflows/ios.yml']
   workflow_dispatch:
     inputs:
       upload:
