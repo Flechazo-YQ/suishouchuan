@@ -28,14 +28,16 @@ xcodebuild build-for-testing -project apps/ios/CommandV.xcodeproj -scheme Comman
   -derivedDataPath build/DerivedData CODE_SIGN_STYLE=Automatic \
   CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES \
   'CODE_SIGN_LOCAL_EXECUTION_IDENTITY=Ad Hoc' PROVISIONING_PROFILE_SPECIFIER= \
-  AppIdentifierPrefix=65635WN76L. 2>&1 | tee build/ios-build.log
+  AppIdentifierPrefix=65635WN76L. CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER:-1}" 2>&1 | tee build/ios-build.log
 # Simulator entitlements are linked into Mach-O, separate from the ad-hoc signature.
 python3 - <<'PY'
-import plistlib, pathlib
+import os, plistlib, pathlib
 base=pathlib.Path('build/DerivedData/Build')
 for target, product in [('CommandV','CommandV.app'),('CommandVShare','CommandVShare.appex')]:
     root=base/'Products/Debug-iphonesimulator'/product
     info=plistlib.loads((root/'Info.plist').read_bytes())
+    assert info['UIDeviceFamily']==[1], 'This target must be iPhone only'
+    assert info['CFBundleVersion']==os.environ.get('GITHUB_RUN_NUMBER','1'), 'Build number was not expanded'
     raw=(base/'Intermediates.noindex/CommandV.build/Debug-iphonesimulator'/(target+'.build')/(product+'-Simulated.xcent')).read_bytes()
     entitlements=plistlib.loads(raw)
     assert info['CommandVKeychainGroup'] in entitlements.get('keychain-access-groups',[]), entitlements

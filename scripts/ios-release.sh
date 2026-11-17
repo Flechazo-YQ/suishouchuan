@@ -39,6 +39,19 @@ xcodebuild archive -project apps/ios/CommandV.xcodeproj -scheme CommandV \
   CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Distribution' \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
   2>&1 | tee build/ios-archive.log
+codesign --verify --deep --strict build/CommandV.xcarchive/Products/Applications/CommandV.app
+python3 - <<'PY'
+import json, os, pathlib, plistlib
+root=pathlib.Path('build/CommandV.xcarchive/Products/Applications/CommandV.app')
+records=[]
+for bundle in [root,root/'PlugIns/CommandVShare.appex']:
+    info=plistlib.loads((bundle/'Info.plist').read_bytes())
+    assert info['UIDeviceFamily']==[1], 'Archive must target iPhone only'
+    assert info['CFBundleVersion']==os.environ['BUILD_NUMBER'], 'Archive build number is incorrect'
+    assert info['CommandVKeychainGroup']=='65635WN76L.com.flechazoyq.commandv', 'Shared pairing group is incorrect'
+    records.append({key:info[key] for key in ['CFBundleIdentifier','CFBundleVersion','CFBundleShortVersionString','UIDeviceFamily','MinimumOSVersion','DTSDKName']})
+json.dump(records,open('build/archive-metadata.json','w'),indent=2)
+PY
 cat > "$SIGNING_DIR/ExportOptions.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>
 <key>method</key><string>app-store-connect</string>
