@@ -27,7 +27,7 @@ class ScreenCaptureActivity : Activity() {
     }
     private fun requestOverlay() {
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "请允许随手传显示悬浮按钮", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "请允许CtrlV显示悬浮按钮", Toast.LENGTH_LONG).show()
             startActivityForResult(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")), 1)
         } else requestCapture()
     }

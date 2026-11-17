@@ -1,7 +1,7 @@
 {
   "name": "imagebridge",
-  "productName": "随手传",
-  "version": "0.4.8",
+  "productName": "CtrlV",
+  "version": "0.4.9",
   "description": "手机图片直达电脑剪贴板",
   "author": "ImageBridge",
   "private": true,
@@ -37,7 +37,7 @@
   },
   "build": {
     "appId": "cn.local.imagebridge",
-    "productName": "随手传",
+    "productName": "CtrlV",
     "directories": {
       "output": "../../release/windows"
     },
@@ -47,8 +47,8 @@
     ],
     "extraResources": [
       {
-        "from": "../../release/android/ImageBridge.apk",
-        "to": "ImageBridge.apk"
+        "from": "../../release/android/CtrlV.apk",
+        "to": "CtrlV.apk"
       },
       {
         "from": "resources/ffprobe.exe",
@@ -74,7 +74,7 @@
       "icon": "resources/icon.ico",
       "signAndEditExecutable": true,
       "signExecutable": false,
-      "artifactName": "ImageBridge-Setup-${version}.exe"
+      "artifactName": "CtrlV-Setup-${version}.exe"
     },
     "nsis": {
       "oneClick": false,
@@ -83,7 +83,7 @@
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": false,
       "createDesktopShortcut": true,
-      "shortcutName": "随手传"
+      "shortcutName": "CtrlV"
     }
   }
 }

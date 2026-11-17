@@ -50,16 +50,18 @@ Windows中文项目路径可能影响Android原生构建，现有脚本同步到
 
 ### 产物与验证
 
-- Android：`release/android/ImageBridge.apk`。
-- Windows：`release/windows/ImageBridge-Setup-<版本>.exe`。
+- Android：`release/android/CtrlV.apk`。
+- Windows：`release/windows/CtrlV-Setup-<版本>.exe`。
 - `verify-release.cjs`校验构建主进程、内置APK、媒体工具/许可证和原生剪贴板依赖是否一致，生成本地manifest。
 - 安装后另外核对运行版本、配对与真实发送；不能仅凭构建通过就判定交付成功。
 
-0.4.8沿用的Android发行证书SHA-256：`fec25f2978922c0462e1577aa4983ede90f8e673400aebd0b7f201840c441c44`。文件SHA-256以Release的`SHA256SUMS.txt`为准。
+0.4.9沿用的Android发行证书SHA-256：`fec25f2978922c0462e1577aa4983ede90f8e673400aebd0b7f201840c441c44`。文件SHA-256以Release的`SHA256SUMS.txt`为准。
 
 ## 数据与边界
 
-Windows程序安装到`%LOCALAPPDATA%\Programs\ImageBridge`，配置和媒体缓存位于`%APPDATA%\随手传`。这些运行数据不属于源码，不能公开上传。手机私有outbox只暂存待发素材；详情见[缓存规则](CACHE-POLICY.md)。
+Windows程序安装到`%LOCALAPPDATA%\Programs\ImageBridge`，配置和媒体缓存位于`%APPDATA%\随手传`。0.4.9 将显示名与安装包名称改为 CtrlV，保留该数据目录、安装身份、Android applicationId 和协议标识，避免更新丢失配对；开机启动项改为新可执行文件。未来 iPhone 版计划名为 CommandV，当前仓库不含 iOS 发布包。
+
+这些运行数据不属于源码，不能公开上传。手机私有outbox只暂存待发素材；详情见[缓存规则](CACHE-POLICY.md)。
 
 公开源码以0.4.8已验收代码作为首次基线，早期演进见[CHANGELOG](../CHANGELOG.md)。本机配对配置、签名私钥、私人截图和包含设备信息的调试验收记录不随仓库发布。GitHub首次发布时间与各版本的本地开发日期分别记录，不补造早期发布记录。
 

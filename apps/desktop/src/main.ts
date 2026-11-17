@@ -11,7 +11,10 @@ import {Receiver, addresses, isPrivate} from './receiver';
 import type {DesktopState, Settings, Transfer} from './types';
 import {clipboardSequence, verifyClipboard, verifyClipboardFiles} from './windowsClipboard';
 
-app.setName('随手传');
+app.setName('CtrlV');
+// Keep the existing identity, pairing credentials and cache when the display name changes.
+app.setPath('userData', path.join(app.getPath('appData'), '随手传'));
+app.setAppUserModelId('cn.local.imagebridge');
 const testOutput = process.argv.find(value => value.startsWith('--self-test='))?.slice(12);
 const testDirectory = process.argv.find(value => value.startsWith('--data-dir='))?.slice(11);
 if (testDirectory) app.setPath('userData', path.resolve(testDirectory));
@@ -67,7 +70,7 @@ function secure(view: BrowserWindow) {
 }
 function showWindow() {
   if (!window) {
-    window = new BrowserWindow({...options(), width: 1060, height: 760, minWidth: 780, minHeight: 600, title: '随手传'});
+    window = new BrowserWindow({...options(), width: 1060, height: 760, minWidth: 780, minHeight: 600, title: 'CtrlV'});
     secure(window);
     window.on('close', event => {if (!quitting) {event.preventDefault(); window?.hide();}});
     void window.loadFile(path.join(__dirname, 'renderer/index.html'));
@@ -98,6 +101,15 @@ function getTransfer(id: unknown) {
   if (item?.cacheExpired || !item?.imagePath || !fs.existsSync(item.imagePath)) throw new Error('素材缓存已被清理');
   return item;
 }
+function updateLoginItem(openAtLogin: boolean) {
+  const legacyPath = path.join(path.dirname(process.execPath), '随手传.exe');
+  for (const item of app.getLoginItemSettings({path: legacyPath}).launchItems) {
+    if (item.scope === 'user' && path.resolve(item.path).toLowerCase() === legacyPath.toLowerCase()) {
+      app.setLoginItemSettings({openAtLogin: false, name: item.name});
+    }
+  }
+  app.setLoginItemSettings({openAtLogin, name: 'CtrlV', args: ['--hidden']});
+}
 function registerIpc() {
   const handlers: Record<string, (...args: unknown[]) => unknown> = {
     state,
@@ -112,7 +124,7 @@ function registerIpc() {
       if (typeof settings.receiving === 'boolean') store.state.settings.receiving = settings.receiving;
       if (typeof settings.launchAtLogin === 'boolean') {
         store.state.settings.launchAtLogin = settings.launchAtLogin;
-        app.setLoginItemSettings({openAtLogin: settings.launchAtLogin, args: ['--hidden']});
+        updateLoginItem(settings.launchAtLogin);
       }
       store.save(); updateTray(); changed();
     },
@@ -138,7 +150,7 @@ function registerIpc() {
         return;
       }
       const video = item.mime === 'video/mp4';
-      const result = await dialog.showSaveDialog({defaultPath: path.join(app.getPath(video ? 'videos' : 'pictures'), '随手传-' + new Date(item.createdAt).toISOString().replace(/[:.]/g, '-') + (video ? '.mp4' : '.png')), filters: [{name: video ? 'MP4 视频' : 'PNG 图片', extensions: [video ? 'mp4' : 'png']}]});
+      const result = await dialog.showSaveDialog({defaultPath: path.join(app.getPath(video ? 'videos' : 'pictures'), 'CtrlV-' + new Date(item.createdAt).toISOString().replace(/[:.]/g, '-') + (video ? '.mp4' : '.png')), filters: [{name: video ? 'MP4 视频' : 'PNG 图片', extensions: [video ? 'mp4' : 'png']}]});
       if (!result.canceled && result.filePath) {
         const current = getTransfer(id); const release = store.pin(current.requestId);
         try {await fs.promises.copyFile(current.imagePath!, result.filePath);} finally {release(); void store.prune().then(() => changed());}
@@ -153,29 +165,30 @@ function registerIpc() {
 }
 function updateTray() {
   if (!tray) return;
-  tray.setToolTip('随手传 · ' + (store.state.settings.receiving ? '正在接收' : '接收已暂停'));
+  tray.setToolTip('CtrlV · ' + (store.state.settings.receiving ? '正在接收' : '接收已暂停'));
   tray.setContextMenu(Menu.buildFromTemplate([
-    {label: '打开随手传', click: showWindow},
+    {label: '打开 CtrlV', click: showWindow},
     {label: '接收手机图片', type: 'checkbox', checked: store.state.settings.receiving, click: item => {store.state.settings.receiving = item.checked; store.save(); changed(); updateTray();}},
     {type: 'separator'}, {label: '退出', click: () => {quitting = true; app.quit();}},
   ]));
 }
 async function startDownload() {
-  const apk = app.isPackaged ? path.join(process.resourcesPath, 'ImageBridge.apk') : path.resolve(__dirname, '../../../release/android/ImageBridge.apk');
+  const apk = app.isPackaged ? path.join(process.resourcesPath, 'CtrlV.apk') : path.resolve(__dirname, '../../../release/android/CtrlV.apk');
   if (!fs.existsSync(apk)) return;
   const key = randomBytes(16).toString('hex');
   downloadServer = http.createServer((req, res) => {
-    if (!isPrivate(req.socket.remoteAddress ?? '') || req.url !== '/' + key + '/ImageBridge.apk' || req.method !== 'GET') {res.writeHead(404); res.end(); return;}
-    res.writeHead(200, {'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="ImageBridge.apk"', 'Content-Length': fs.statSync(apk).size});
+    if (!isPrivate(req.socket.remoteAddress ?? '') || req.url !== '/' + key + '/CtrlV.apk' || req.method !== 'GET') {res.writeHead(404); res.end(); return;}
+    res.writeHead(200, {'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="CtrlV.apk"', 'Content-Length': fs.statSync(apk).size});
     fs.createReadStream(apk).pipe(res);
   });
   await new Promise<void>(resolve => {downloadServer!.once('error', () => resolve()); downloadServer!.listen(43822, '0.0.0.0', resolve);});
   const address = addresses()[0];
-  if (address && downloadServer.listening) downloadUrl = `http://${address}:43822/${key}/ImageBridge.apk`;
+  if (address && downloadServer.listening) downloadUrl = `http://${address}:43822/${key}/CtrlV.apk`;
 }
 async function start() {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows 凭据加密不可用，无法安全保存配对信息');
   store = new Store(app.getPath('userData'), {seal: value => safeStorage.encryptString(value).toString('base64'), open: value => safeStorage.decryptString(Buffer.from(value, 'base64'))});
+  if (app.isPackaged && !testDirectory && !testOutput) updateLoginItem(store.state.settings.launchAtLogin);
   receiver = new Receiver(store, copyImage, changed, copyFiles);
   try {await receiver.start(testOutput ? 0 : 43821);} catch (error) {if (testOutput) throw error; await receiver.start(0); warning = '默认端口被占用，已使用备用端口；请刷新二维码。';}
   if (testOutput) {
@@ -204,6 +217,6 @@ if (single) void app.whenReady().then(start).catch(error => {
   fs.mkdirSync(app.getPath('userData'), {recursive: true});
   fs.appendFileSync(path.join(app.getPath('userData'), 'error.log'), new Date().toISOString() + ' ' + message + '\n');
   if (testOutput) fs.writeFileSync(testOutput, JSON.stringify({error: message}));
-  else dialog.showErrorBox('随手传启动失败', message);
+  else dialog.showErrorBox('CtrlV 启动失败', message);
   app.exit(1);
 });

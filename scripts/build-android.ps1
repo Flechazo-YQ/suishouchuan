@@ -20,7 +20,7 @@ try {
     if ($LASTEXITCODE -ne 0) {throw 'Android 构建失败'}
     $target = Join-Path $projectRoot 'release\android'
     New-Item -ItemType Directory -Force -Path $target | Out-Null
-    Copy-Item -LiteralPath 'app\build\outputs\apk\release\app-release.apk' -Destination (Join-Path $target 'ImageBridge.apk')
-    & (Join-Path $SdkRoot 'build-tools\37.0.0\apksigner.bat') verify --print-certs (Join-Path $target 'ImageBridge.apk')
+    Copy-Item -LiteralPath 'app\build\outputs\apk\release\app-release.apk' -Destination (Join-Path $target 'CtrlV.apk')
+    & (Join-Path $SdkRoot 'build-tools\37.0.0\apksigner.bat') verify --print-certs (Join-Path $target 'CtrlV.apk')
     if ($LASTEXITCODE -ne 0) {throw 'APK 签名校验失败'}
 } finally {Pop-Location}

@@ -71,7 +71,7 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
     }
     @ReactMethod fun pair(uriText: String, promise: Promise) = work(promise) {
         val uri = Uri.parse(uriText)
-        require(uri.scheme == "imagebridge" && uri.host == "pair") { "请扫描随手传电脑端的配对二维码" }
+        require(uri.scheme == "imagebridge" && uri.host == "pair") { "请扫描CtrlV电脑端的配对二维码" }
         val invitation = JSONObject(uri.getQueryParameter("data") ?: "{}")
         require(invitation.getInt("v") == 1 && invitation.getLong("expiresAt") > System.currentTimeMillis()) { "二维码已过期，请在电脑端刷新" }
         val data = storage.read()
