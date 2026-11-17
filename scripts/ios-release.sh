@@ -36,6 +36,7 @@ for profile_dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Lib
 done
 xcodebuild archive -project apps/ios/CommandV.xcodeproj -scheme CommandV \
   -destination 'generic/platform=iOS' -archivePath build/CommandV.xcarchive \
+  CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Distribution' \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
   2>&1 | tee build/ios-archive.log
 cat > "$SIGNING_DIR/ExportOptions.plist" <<'PLIST'

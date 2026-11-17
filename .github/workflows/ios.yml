@@ -9,6 +9,10 @@ on:
         description: Upload signed build to TestFlight
         type: boolean
         default: false
+      tested_commit:
+        description: Previously tested commit when only release scripts or docs changed
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -26,16 +30,25 @@ jobs:
           xcodebuild -version
           brew install xcodegen
           xcodegen generate --spec apps/ios/project.yml
-      - name: Require successful tests for this commit
+      - name: Require successful tests for these sources
         if: github.event_name == 'workflow_dispatch' && inputs.upload
         env:
           GH_TOKEN: ${{ github.token }}
+          TESTED_COMMIT: ${{ inputs.tested_commit || github.sha }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ios.yml/runs?head_sha=$GITHUB_SHA&status=completed&per_page=100" > "$RUNNER_TEMP/commandv-runs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ios.yml/runs?head_sha=$TESTED_COMMIT&status=completed&per_page=100" > "$RUNNER_TEMP/commandv-runs.json"
           python3 - <<'PY'
-          import json, os
+          import json, os, re, subprocess
+          tested=os.environ['TESTED_COMMIT']
+          assert re.fullmatch('[0-9a-f]{40}',tested), 'A complete tested commit SHA is required'
           runs=json.load(open(os.environ['RUNNER_TEMP']+'/commandv-runs.json'))['workflow_runs']
-          assert any(r['head_sha']==os.environ['GITHUB_SHA'] and r['event']=='push' and r['conclusion']=='success' for r in runs), 'This exact commit must pass the iPhone CI tests before upload'
+          assert any(r['head_sha']==tested and r['event']=='push' and r['conclusion']=='success' for r in runs), 'The baseline must have passed the iPhone CI tests'
+          subprocess.run(['git','fetch','--depth=1','origin',tested],check=True)
+          paths=['apps/ios','apps/desktop','scripts/ios-test.sh','scripts/ios-receiver-fixture.ts','package.json']
+          def tree(ref):
+              return subprocess.check_output(['git','ls-tree','-r',ref,'--',*paths])
+          assert tree(tested)==tree(os.environ['GITHUB_SHA']), 'App, receiver or test sources changed; run the iPhone tests first'
+          json.dump({'testedCommit':tested,'releaseCommit':os.environ['GITHUB_SHA'],'sourcesMatch':True},open(os.environ['RUNNER_TEMP']+'/commandv-validation.json','w'))
           PY
       - name: Build and test on iPhone simulator
         if: github.event_name != 'workflow_dispatch' || !inputs.upload
