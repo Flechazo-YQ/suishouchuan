@@ -2,7 +2,7 @@
 
 CommandV 通过同一 Wi-Fi 把照片、截图和短视频发送到现有 Windows CtrlV 接收端。照片不经过业务云服务器。GitHub Actions 的 macOS 机器仅编译源码、签名并上传测试安装包。
 
-2026-11-17：新版 TestFlight 内部构建 **1.0（20）** 已完成 Apple 处理并加入原内部测试组，受邀账号可在 TestFlight 更新。相机首页与 Android CtrlV 的操作流程对齐；原配对存储保留。尚无公开邀请链接或 App Store 正式版本。
+2026-11-17：屏幕采集验证版 **1.0（23）** 已完成 Apple 处理并加入原内部测试组，受邀账号可在 TestFlight 更新。新增 iOS 27 原生采集、灵动岛控制和操作按钮快捷指令；跨 App 实际效果仍待真机验证。原配对存储保留。尚无公开邀请链接或 App Store 正式版本。
 
 旧版 1.0（14）已由用户确认真机配对、照片发送/电脑粘贴和系统截图分享成功。新版 1.0（20）的协议、素材组切换、配对存储和模拟器界面测试通过；用户已确认更新后的取景、拍照、发送和电脑粘贴正常。长按录像、连拍与相册切换及异常权限行为仍需继续真机验收。
 
@@ -12,7 +12,8 @@ CommandV 通过同一 Wi-Fi 把照片、截图和短视频发送到现有 Window
 - 轻触拍照，按住录像，松手或最长 30 秒结束。单张预览左上重新拍摄、右上勾选后确认上传；不提供闪光灯和镜头翻转按钮。
 - “拍摄 / 连拍”可点选或左右滑动，连拍最多 10 张，缩略图可预览和移除，右上“确认并发送”直接发送整组。
 - 相册选择完成后独立发送；原连拍组及其失败重试编号保留，发送成功后恢复。待发组可通过“待发 N 张 · 查看”切换。
-- iPhone 的右侧入口说明系统截图/录屏和分享步骤，并提供截图、多图与 30 秒内录屏视频的选取入口；不提供 Android 式跨应用悬浮截屏。
+- iOS 27 右下入口新增“开始屏幕采集”，通过系统授权采集整个屏幕。灵动岛可逐张截取、开始/停止录屏和返回查看；操作按钮可配置 CommandV 快捷指令。截图延迟 1.5 秒，最多 10 张，中途可查看，预览确认后整组发送，原相机连拍组保留。这是待真机验收的验证功能。
+- 系统截图/录屏分享和导入入口继续保留，供旧系统及手动导入使用。
 - 扫描电脑二维码或粘贴 `imagebridge://pair` 链接；确认电脑名称后配对。
 - 配对保存在 iOS Keychain；主应用与系统分享扩展通过指定 Keychain 访问组共享配对。
 - 拍照、相册多选、预览移除、1–10 张图集，以及最长 30 秒的视频。
@@ -22,7 +23,7 @@ CommandV 通过同一 Wi-Fi 把照片、截图和短视频发送到现有 Window
 
 JPEG/PNG 原件在 32 MB / 6400 万像素范围内保留像素，方向由接收端纠正。其他静态图片转换为最长边 4096 像素的 JPEG；视频转换为 720p MP4。图集和视频上限为 100 MB。相册原件不会删除。应用下次导入时会清理超过 24 小时的遗留临时目录。
 
-iPhone 不提供 Android 的悬浮截屏按钮；截图使用 iOS 系统截图与分享菜单。代码部署目标为 iOS 15.1，后续系统兼容性以实机测试为准。
+iPhone 采用系统灵动岛/操作按钮控制，不是 Android 的任意悬浮窗。原生屏幕采集需要 iOS 27；主应用及分享扩展最低 iOS 15.1，灵动岛扩展最低 iOS 27。旧系统保留原有拍摄、系统截图分享和素材导入。截图是否包含控制面板、后台触发与录屏结果须以真机验证为准。
 
 ## 构建
 
@@ -34,17 +35,21 @@ xcodegen generate --spec apps/ios/project.yml
 bash scripts/ios-test.sh
 ```
 
-测试脚本用于 GitHub macOS runner，需要 `RUNNER_TEMP`。它先启动实际接收服务验证 Swift 的配对、证书固定、单图、图集和重试，再运行 iPhone 模拟器单元测试与界面测试。测试中的剪贴板回调检查已接收图片，不代替 Windows 系统剪贴板和 iPhone 真机验收。
+测试脚本用于 GitHub macOS runner，需要 `RUNNER_TEMP`。它先用真机 SDK 编译原生采集代码，再启动实际接收服务验证 Swift 的配对、证书固定、单图、图集和重试，最后运行 iPhone 模拟器单元测试与界面测试。模拟器 SDK 不提供 ScreenCaptureKit，模拟器只验证入口和素材流程；剪贴板回调及模拟器结果不能代替 Windows 系统剪贴板和 iPhone 真机采集验收。
 
 云端工作流为 `.github/workflows/ios.yml`。开发分支涉及 iOS 的推送执行测试；通过后合入主线，手动运行并勾选 `upload` 才会签名上传 TestFlight。上传前核对成功测试记录；只有发布脚本或文档变化时，可在 `tested_commit` 填写已通过测试的完整提交 SHA。工作流会逐文件比较 iOS 工程、接收端和测试脚本，任何差异都会要求重新测试。不会自动提交 App Store 审核或正式上架。
 
-仓库 Secrets：`APPLE_CERTIFICATE_P12`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_PROFILE_APP`、`APPLE_PROFILE_SHARE`、`APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`。P12 与两个描述文件使用 Base64，API 私钥保留 PEM 文本。密钥不得写入源码或日志。主应用 Bundle ID 为 `com.flechazoyq.commandv`，分享扩展为 `com.flechazoyq.commandv.share`。
+仓库 Secrets：`APPLE_CERTIFICATE_P12`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_PROFILE_APP`、`APPLE_PROFILE_SHARE`、`APPLE_PROFILE_CAPTURE`、`APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`。P12 与三个描述文件使用 Base64，API 私钥保留 PEM 文本。密钥不得写入源码或日志。主应用 Bundle ID 为 `com.flechazoyq.commandv`，分享扩展为 `.share`，灵动岛扩展为 `.capture`。按 Apple DTS 澄清，无需示例中遗留的 `com.apple.developer.screen-recording` entitlement。
 
 上传后需等待 Apple 处理完成，再把构建分配给 TestFlight 内部测试组。安装者从邀请邮件进入 TestFlight；GitHub Release 的 EXE / APK 仍对应 Windows / Android。
 
 ## 真机验收
 
-1. 在 TestFlight 将 CommandV 更新到 1.0（20），确认左上显示原配对电脑；首次使用才需扫码，手机允许相机和本地网络权限。
+屏幕采集验证版就绪后，先按以下步骤检查：右下截屏/录屏 → 开始屏幕采集 → 允许系统共享整个屏幕 → 切到目标 App → 展开灵动岛点“截取”并收起面板 → 等待 1.5 秒。再到系统设置 → 操作按钮 → 快捷指令，选择 CommandV“截取一张”，用操作按钮截第二张。确认两次均未跳回 App、计数各增加一张；点“查看”核对内容、方向、顺序和控制面板遮挡，再预览确认整组发送并检查电脑 Ctrl+V。之后验证中途查看后继续截图、10 张上限、短录屏/30 秒停止、系统停止和权限取消。此清单尚未标为通过。
+
+原相机回归：
+
+1. 在 TestFlight 更新到本轮内部测试版本，确认左上显示原配对电脑；首次使用才需扫码，手机允许相机和本地网络权限。
 2. 两端连接同一 Wi-Fi，轻触快门拍照，右上勾选并确认发送；Windows Ctrl+V 应能粘贴图片。
 3. 长按快门录制短视频，松手结束；首次麦克风授权后按提示重新长按。检查预览声音、发送与最长 30 秒停止。
 4. 左滑切换连拍，拍两张后打开相册：取消应保留原组；选图后只发送新选择，随后恢复原组。连拍预览右上可直接确认并发送，电脑文件剪贴板顺序应一致。
