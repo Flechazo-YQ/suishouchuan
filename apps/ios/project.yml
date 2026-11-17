@@ -21,6 +21,7 @@ targets:
     platform: iOS
     sources:
       - path: App
+      - path: CaptureShared
       - path: Shared
         excludes: [CommandV.entitlements]
     settings:
@@ -30,6 +31,7 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: CommandV AppStore
         CODE_SIGN_ENTITLEMENTS: Shared/CommandV.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COMMANDV_APP
     info:
       path: App/Info.plist
       properties:
@@ -44,6 +46,9 @@ targets:
         CommandVKeychainGroup: $(AppIdentifierPrefix)com.flechazoyq.commandv
         NSCameraUsageDescription: 拍摄要发送到电脑的照片、视频，以及扫描电脑配对二维码。
         NSMicrophoneUsageDescription: 为发送到电脑的视频录制声音。
+        NSScreenCaptureUsageDescription: 在你允许后截取屏幕图片或录制短视频，预览确认后发送到已配对电脑。
+        NSSupportsLiveActivities: true
+        UIBackgroundModes: [screen-capture]
         NSLocalNetworkUsageDescription: 通过同一 Wi-Fi 查找已配对的电脑并直接发送照片和视频。
         NSBonjourServices: [_imagebridge._tcp]
         NSAppTransportSecurity:
@@ -53,6 +58,29 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
     dependencies:
       - target: CommandVShare
+      - target: CommandVCapture
+  CommandVCapture:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '27.0'
+    sources:
+      - path: CaptureWidget
+      - path: CaptureShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flechazoyq.commandv.capture
+        TARGETED_DEVICE_FAMILY: '1'
+        PROVISIONING_PROFILE_SPECIFIER: CommandV Capture AppStore
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: CaptureWidget/Info.plist
+      properties:
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleDisplayName: CommandV
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   CommandVShare:
     type: app-extension
     platform: iOS

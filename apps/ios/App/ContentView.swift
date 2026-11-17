@@ -74,7 +74,10 @@ struct ContentView: View {
             Button("继续查看", role: .cancel) {}
             Button("放弃", role: .destructive) { model.clear(); model.restoreLastDraft(); syncDraftPresentation() }
         } message: { Text("只清理待发副本，相册原件保留。") }
-        .onOpenURL { queuePairing($0.absoluteString) }
+        .onOpenURL { url in
+            if url.scheme == "imagebridge", url.host == "screen" { showScreenTools = true }
+            else { queuePairing(url.absoluteString) }
+        }
         .onAppear {
             model.switchCapture(burst: false)
             camera.captured = { file, video in importCapture(file, video: video) }
@@ -263,6 +266,14 @@ struct ContentView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    if #available(iOS 27.0, *) {
+                        NativeScreenTools { files in
+                            try await model.importScreenFiles(files)
+                            showScreenTools = false
+                            syncDraftPresentation(review: true)
+                        }
+                        Divider()
+                    }
                     Label("系统截图", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
                     Text("用 iPhone 系统截屏后，点分享 → CommandV → 确认发送。连续截好几张，也可以在下方选取后一起发送。").foregroundColor(.secondary)
                     Button("选择截图") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)

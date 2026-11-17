@@ -82,5 +82,51 @@ import UIKit
         XCTAssertEqual(model.requestId, request)
         XCTAssertTrue(model.items.allSatisfy { FileManager.default.fileExists(atPath: $0.url.path) })
     }
+
+    func testScreenCaptureImportPreservesOriginalBurstAndWaitsForConfirmation() async throws {
+        var uploads = 0
+        let model = TransferModel(loadDevices: false, upload: { _, _, id in
+            uploads += 1
+            return TransferResult(requestId: id.uuidString, status: "copied", error: nil)
+        })
+        defer { model.cleanup() }
+        configure(model)
+        let burst = try image(model), screenOne = try image(model), screenTwo = try image(model)
+        try model.appendCapture(burst, burst: true)
+        let burstId = model.requestId
+        try await model.importScreenFiles([screenOne.url, screenTwo.url])
+        XCTAssertEqual(uploads, 0)
+        XCTAssertEqual(model.items.count, 2)
+        XCTAssertEqual(model.source, .library)
+        XCTAssertEqual(model.savedDrafts.first?.requestId, burstId)
+        XCTAssertFalse(model.items.contains { $0.url == screenOne.url || $0.url == screenTwo.url })
+        let sent = await model.send()
+        XCTAssertTrue(sent)
+        XCTAssertEqual(uploads, 1)
+        model.restoreLastDraft()
+        XCTAssertEqual(model.items.map(\.id), [burst.id])
+        XCTAssertEqual(model.requestId, burstId)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: screenOne.url.path))
+    }
+
+    func testBrokenScreenImportKeepsOriginalDraftAndRemovesPartialCopies() async throws {
+        let model = TransferModel(loadDevices: false)
+        defer { model.cleanup() }
+        let original = try image(model), screen = try image(model)
+        try model.appendCapture(original, burst: true)
+        let request = model.requestId
+        let directory = try XCTUnwrap(model.directory)
+        let before = try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+        do {
+            try await model.importScreenFiles([screen.url, directory.appendingPathComponent("missing.jpg")])
+            XCTFail("An unavailable screenshot must not replace the current group")
+        } catch {
+            XCTAssertEqual(model.items.map(\.id), [original.id])
+            XCTAssertEqual(model.requestId, request)
+            XCTAssertTrue(model.savedDrafts.isEmpty)
+            XCTAssertFalse(model.busy)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted(), before)
+        }
+    }
 }
 #endif

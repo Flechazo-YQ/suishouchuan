@@ -67,6 +67,13 @@ final class LaunchTests: XCTestCase {
         finder.swipeRight()
         XCTAssertTrue(app.buttons["拍摄：轻触拍照，长按录像"].waitForExistence(timeout: 3))
         app.buttons["截屏 / 录屏"].tap()
+        if #available(iOS 27.0, *) {
+            XCTAssertTrue(app.buttons["开始屏幕采集"].waitForExistence(timeout: 3))
+            app.buttons["开始屏幕采集"].tap()
+            XCTAssertTrue(app.staticTexts["跨 App 屏幕采集需要在 iPhone 真机测试。"].waitForExistence(timeout: 3))
+            attach(app, "CommandV native screen controls")
+            app.swipeUp()
+        }
         XCTAssertTrue(app.buttons["选择截图"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["选择录屏视频"].exists)
         attach(app, "CommandV screen share guide")

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 mkdir -p build
-for variable in APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_PROFILE_APP APPLE_PROFILE_SHARE APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
+for variable in APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_PROFILE_APP APPLE_PROFILE_SHARE APPLE_PROFILE_CAPTURE APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
   if [ -z "${!variable:-}" ]; then echo "Missing signing secret: $variable" >&2; exit 1; fi
 done
 SIGNING_DIR=$(mktemp -d)
@@ -16,7 +16,7 @@ export SIGNING_DIR
 python3 - <<'PY'
 import base64, os, pathlib
 root=pathlib.Path(os.environ['SIGNING_DIR'])
-for env, filename in [('APPLE_CERTIFICATE_P12','distribution.p12'),('APPLE_PROFILE_APP','app.mobileprovision'),('APPLE_PROFILE_SHARE','share.mobileprovision')]:
+for env, filename in [('APPLE_CERTIFICATE_P12','distribution.p12'),('APPLE_PROFILE_APP','app.mobileprovision'),('APPLE_PROFILE_SHARE','share.mobileprovision'),('APPLE_PROFILE_CAPTURE','capture.mobileprovision')]:
     (root/filename).write_bytes(base64.b64decode(os.environ[env]))
 (root/('AuthKey_'+os.environ['APPLE_API_KEY_ID']+'.p8')).write_text(os.environ['APPLE_API_KEY'])
 PY
@@ -44,11 +44,12 @@ python3 - <<'PY'
 import json, os, pathlib, plistlib
 root=pathlib.Path('build/CommandV.xcarchive/Products/Applications/CommandV.app')
 records=[]
-for bundle in [root,root/'PlugIns/CommandVShare.appex']:
+for bundle in [root,root/'PlugIns/CommandVShare.appex',root/'PlugIns/CommandVCapture.appex']:
     info=plistlib.loads((bundle/'Info.plist').read_bytes())
     assert info['UIDeviceFamily']==[1], 'Archive must target iPhone only'
     assert info['CFBundleVersion']==os.environ['BUILD_NUMBER'], 'Archive build number is incorrect'
-    assert info['CommandVKeychainGroup']=='65635WN76L.com.flechazoyq.commandv', 'Shared pairing group is incorrect'
+    if bundle.name!='CommandVCapture.appex':
+        assert info['CommandVKeychainGroup']=='65635WN76L.com.flechazoyq.commandv', 'Shared pairing group is incorrect'
     records.append({key:info[key] for key in ['CFBundleIdentifier','CFBundleVersion','CFBundleShortVersionString','UIDeviceFamily','MinimumOSVersion','DTSDKName']})
 json.dump(records,open('build/archive-metadata.json','w'),indent=2)
 PY
@@ -62,6 +63,7 @@ cat > "$SIGNING_DIR/ExportOptions.plist" <<'PLIST'
 <key>provisioningProfiles</key><dict>
 <key>com.flechazoyq.commandv</key><string>CommandV AppStore</string>
 <key>com.flechazoyq.commandv.share</key><string>CommandV Share AppStore</string>
+<key>com.flechazoyq.commandv.capture</key><string>CommandV Capture AppStore</string>
 </dict></dict></plist>
 PLIST
 xcodebuild -exportArchive -archivePath build/CommandV.xcarchive -exportOptionsPlist "$SIGNING_DIR/ExportOptions.plist" -exportPath build/export 2>&1 | tee build/ios-export.log

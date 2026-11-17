@@ -73,6 +73,24 @@ struct TransferDraft: Identifiable {
         try validate(all)
         items = all; requestId = UUID(); failure = false
     }
+    func importScreenFiles(_ files: [URL]) async throws {
+        guard !busy, let directory, !files.isEmpty else { throw BridgeError.message("素材仍在处理中，请稍后再试") }
+        busy = true
+        defer { busy = false }
+        var imported: [MediaItem] = []
+        do {
+            for file in files {
+                if file.pathExtension.lowercased() == "mp4" { imported.append(try await MediaImporter.video(file, into: directory)) }
+                else { imported.append(try MediaImporter.image(file, into: directory)) }
+            }
+            try validate(imported)
+            beginIndependent(imported.first?.mime == "video/mp4" ? .video : .library)
+            try append(imported); message = "预览后确认发送到电脑"; failure = false
+        } catch {
+            imported.forEach { try? FileManager.default.removeItem(at: $0.url) }
+            throw error
+        }
+    }
     private func validate(_ all: [MediaItem]) throws {
         guard all.count <= 10, all.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else { throw BridgeError.message("每组最多 10 张、100 MB，请先发送已有素材") }
         guard all.count <= 1 || all.allSatisfy({ $0.mime != "video/mp4" }) else { throw BridgeError.message("视频需单独发送，请先发送或清空当前素材") }
