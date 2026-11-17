@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 mkdir -p build
+# The simulator SDK omits ScreenCaptureKit, so validate the real capture implementation separately.
+xcodebuild build -project apps/ios/CommandV.xcodeproj -scheme CommandV \
+  -destination 'generic/platform=iOS' -derivedDataPath build/DeviceData \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO PROVISIONING_PROFILE_SPECIFIER= \
+  CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER:-1}" 2>&1 | tee build/ios-device-build.log
 npm --prefix apps/desktop ci --ignore-scripts --no-audit --no-fund > build/ios-dependencies.log 2>&1
 export COMMANDV_TEST_FIXTURE="$RUNNER_TEMP/commandv-receiver.json"
 node apps/desktop/node_modules/tsx/dist/cli.mjs scripts/ios-receiver-fixture.ts "$COMMANDV_TEST_FIXTURE" > build/receiver.log 2>&1 &

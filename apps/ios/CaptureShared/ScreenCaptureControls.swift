@@ -1,6 +1,10 @@
 import ActivityKit
 import AppIntents
 
+private struct CaptureRoutingError: LocalizedError {
+    var errorDescription: String? { "系统未将操作交给 CommandV，请重新打开应用并开始屏幕采集。" }
+}
+
 @available(iOS 17.0, *)
 struct ScreenCaptureAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
@@ -21,6 +25,8 @@ struct CaptureScreenFrameIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
         try await ScreenCaptureSession.shared.captureFrame()
+        #else
+        throw CaptureRoutingError()
         #endif
         return .result()
     }
@@ -34,6 +40,8 @@ struct ToggleScreenRecordingIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
         try await ScreenCaptureSession.shared.toggleRecording()
+        #else
+        throw CaptureRoutingError()
         #endif
         return .result()
     }
@@ -47,6 +55,8 @@ struct StopScreenCaptureIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
         await ScreenCaptureSession.shared.stop()
+        #else
+        throw CaptureRoutingError()
         #endif
         return .result()
     }

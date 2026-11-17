@@ -3,6 +3,24 @@ import Combine
 import UIKit
 import CoreImage
 import ActivityKit
+#if targetEnvironment(simulator)
+// ScreenCaptureKit ships only in the device SDK; simulator tests cover the entry and transfer flow.
+@available(iOS 27.0, *)
+@MainActor final class ScreenCaptureSession: ObservableObject {
+    static let shared = ScreenCaptureSession()
+    @Published var message = ""
+    let active = false, starting = false, recording = false, finishing = false, pendingShot = false
+    let files: [URL] = []
+    let seconds = 0
+    let isVideo = false, canCapture = false
+    func presentPicker() { message = "跨 App 屏幕采集需要在 iPhone 真机测试。" }
+    func captureFrame() async throws { throw BridgeError.message("屏幕采集需要 iPhone 真机。") }
+    func toggleRecording() async throws { throw BridgeError.message("屏幕采集需要 iPhone 真机。") }
+    func stop() async {}
+    func remove(_ file: URL) throws {}
+    func clearImported() throws {}
+}
+#else
 @preconcurrency import ScreenCaptureKit
 
 @available(iOS 27.0, *)
@@ -193,3 +211,4 @@ private final class ScreenCaptureObserver: NSObject, SCContentSharingPickerObser
     func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) { Task { @MainActor in owner?.recordingFinished() } }
     func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: Error) { Task { @MainActor in owner?.recordingFinished(error) } }
 }
+#endif
