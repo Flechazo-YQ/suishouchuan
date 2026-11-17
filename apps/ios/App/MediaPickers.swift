@@ -4,12 +4,18 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 struct LibraryPicker: UIViewControllerRepresentable {
+    enum Kind { case all, images, videos }
     let limit: Int
+    var kind: Kind = .all
     let finished: ([NSItemProvider]) -> Void
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration()
-        configuration.selectionLimit = max(1, limit)
-        configuration.filter = .any(of: [.images, .videos])
+        configuration.selectionLimit = kind == .videos ? 1 : max(1, limit)
+        switch kind {
+        case .all: configuration.filter = .any(of: [.images, .videos])
+        case .images: configuration.filter = .images
+        case .videos: configuration.filter = .videos
+        }
         configuration.selection = .ordered
         let picker = PHPickerViewController(configuration: configuration)
         picker.delegate = context.coordinator

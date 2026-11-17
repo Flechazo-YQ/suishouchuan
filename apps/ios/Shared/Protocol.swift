@@ -76,13 +76,13 @@ struct UploadPayload {
     let mime: String
     let digest: String
     let temporary: Bool
-    static func prepare(_ items: [MediaItem], directory: URL) throws -> UploadPayload {
+    static func prepare(_ items: [MediaItem], directory: URL, asBatch: Bool = false) throws -> UploadPayload {
         guard !items.isEmpty, items.count <= 10 else { throw BridgeError.message("每次请选择 1–10 张图片") }
         for item in items {
             let limit = item.mime == "video/mp4" ? 100_000_000 : 32 * 1024 * 1024
             guard item.bytes > 0, item.bytes <= limit else { throw BridgeError.message("单图上限 32 MB，视频上限 100 MB") }
         }
-        if items.count == 1 {
+        if items.count == 1 && (!asBatch || items[0].mime == "video/mp4") {
             let item = items[0]
             guard ["image/jpeg", "image/png", "video/mp4"].contains(item.mime) else { throw BridgeError.message("不支持的文件类型") }
             return UploadPayload(file: item.url, route: item.mime == "video/mp4" ? "/v1/videos" : "/v1/images", mime: item.mime, digest: try digestFile(item.url), temporary: false)
@@ -92,7 +92,9 @@ struct UploadPayload {
         }
         struct Entry: Encodable { let bytes: Int; let mime: String; let sha256: String }
         struct Manifest: Encodable { let images: [Entry] }
-        let header = try JSONEncoder().encode(Manifest(images: items.map { Entry(bytes: $0.bytes, mime: $0.mime, sha256: try digestFile($0.url)) }))
+        // A retry must reproduce the same manifest digest for the same request ID.
+        let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
+        let header = try encoder.encode(Manifest(images: items.map { Entry(bytes: $0.bytes, mime: $0.mime, sha256: try digestFile($0.url)) }))
         guard header.count <= 16384 else { throw BridgeError.message("图集信息过大") }
         let file = directory.appendingPathComponent(UUID().uuidString + ".batch")
         FileManager.default.createFile(atPath: file.path, contents: nil)

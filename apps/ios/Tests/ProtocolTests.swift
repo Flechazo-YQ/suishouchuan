@@ -48,4 +48,21 @@ final class ProtocolTests: XCTestCase {
         try Data([1]).write(to: file); defer { try? FileManager.default.removeItem(at: file) }
         XCTAssertThrowsError(try UploadPayload.prepare([MediaItem(url: file, mime: "video/mp4"), MediaItem(url: file, mime: "image/png")], directory: directory))
     }
+
+    func testSingleAlbumUsesFileBatchAndRepeatedPreparationIsStable() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("photo.jpg")
+        try Data([1, 2, 3]).write(to: file)
+        let item = MediaItem(url: file, mime: "image/jpeg")
+        let first = try UploadPayload.prepare([item], directory: directory, asBatch: true)
+        XCTAssertEqual(first.route, "/v1/batches")
+        for _ in 0..<20 {
+            let retry = try UploadPayload.prepare([item], directory: directory, asBatch: true)
+            XCTAssertEqual(retry.digest, first.digest)
+            XCTAssertEqual(try Data(contentsOf: retry.file), Data(contentsOf: first.file))
+        }
+        XCTAssertEqual(try UploadPayload.prepare([item], directory: directory).route, "/v1/images")
+    }
 }
