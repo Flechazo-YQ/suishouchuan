@@ -16,6 +16,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
     private let photos = AVCapturePhotoOutput()
     private let movies = AVCaptureMovieFileOutput()
     private var configured = false
+    private var wantsPreview = false
     private var wantsRecording = false
     private var audioAdded = false
     private var timer: Timer?
@@ -29,7 +30,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
             self?.stopRecording()
         })
         observers.append(NotificationCenter.default.addObserver(forName: .AVCaptureSessionInterruptionEnded, object: session, queue: .main) { [weak self] _ in
-            self?.start()
+            if self?.wantsPreview == true { self?.start() }
         })
     }
     deinit { observers.forEach(NotificationCenter.default.removeObserver); timer?.invalidate() }
@@ -43,6 +44,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
         }
     }
     func start() {
+        wantsPreview = true
         authorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
         guard authorized else { return }
         queue.async {
@@ -50,11 +52,12 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
                 if !self.configured { try self.configure() }
                 if !self.session.isRunning { self.session.startRunning() }
                 let running = self.session.isRunning
-                DispatchQueue.main.async { self.ready = running }
+                DispatchQueue.main.async { self.ready = running && self.wantsPreview }
             } catch { self.fail(error) }
         }
     }
     func stop() {
+        wantsPreview = false
         ready = false
         stopRecording()
         queue.async { if self.session.isRunning { self.session.stopRunning() } }
