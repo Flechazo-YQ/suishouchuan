@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var cameraVideo = false
     @State private var showScanner = false
     @State private var pairingText = ""
+    @State private var pendingPairingText: String?
     @State private var invitation: Invitation?
     @State private var confirmPair = false
     @State private var preview: MediaItem?
@@ -59,13 +60,13 @@ struct ContentView: View {
             }.background(Color(red: 0.055, green: 0.06, blue: 0.065)).navigationTitle("CommandV")
                 .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button { showDevices = true } label: { Image(systemName: "qrcode.viewfinder") }.accessibilityLabel("配对电脑") } }
         }.navigationViewStyle(.stack).preferredColorScheme(.dark).tint(accent)
-            .sheet(isPresented: $showDevices) { deviceSheet }
+            .sheet(isPresented: $showDevices, onDismiss: completePairingPresentation) { deviceSheet }
             .sheet(isPresented: $showLibrary) { LibraryPicker(limit: 10 - model.items.count) { providers in showLibrary = false; if !providers.isEmpty { Task { await model.importProviders(providers) } } } }
             .fullScreenCover(isPresented: $showCamera) { CameraPicker(video: cameraVideo) { value in showCamera = false; if let value { importCamera(value) } }.ignoresSafeArea() }
-            .sheet(isPresented: $showScanner) { NavigationView { QRScanner { text in showScanner = false; parsePairing(text) }.navigationTitle("扫描电脑配对二维码").toolbar { Button("取消") { showScanner = false } } } }
+            .sheet(isPresented: $showScanner, onDismiss: completePairingPresentation) { NavigationView { QRScanner { text in queuePairing(text) }.navigationTitle("扫描电脑配对二维码").toolbar { Button("取消") { showScanner = false } } } }
             .sheet(item: $preview) { item in NavigationView { Group { if item.mime == "video/mp4" { VideoPlayer(player: AVPlayer(url: item.url)) } else { MediaThumbnail(item: item).scaledToFit() } }.navigationTitle("发送预览").toolbar { Button("完成") { preview = nil } } } }
             .alert("配对电脑", isPresented: $confirmPair) { Button("取消", role: .cancel) {}; Button("确认配对") { if let invitation { Task { await model.pair(invitation) } } } } message: { Text("允许向「\(invitation?.name ?? "")」发送素材？") }
-            .onOpenURL { parsePairing($0.absoluteString) }
+            .onOpenURL { queuePairing($0.absoluteString) }
             .onChange(of: scenePhase) { phase in if phase == .active { do { try model.reload(); model.startDiscovery() } catch { model.report(error) } } else { model.stopDiscovery() } }
             .onAppear { model.startDiscovery() }
     }
@@ -92,7 +93,7 @@ struct ContentView: View {
                         Task { do { try await requestCamera(video: false); showDevices = false; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showScanner = true } } catch { model.report(error); showDevices = false } }
                     }
                     TextField("或粘贴电脑端配对链接", text: $pairingText).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button("使用配对链接") { showDevices = false; parsePairing(pairingText) }.disabled(pairingText.isEmpty)
+                    Button("使用配对链接") { queuePairing(pairingText) }.disabled(pairingText.isEmpty)
                 }
                 Section { Button("打开系统权限设置") { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } } }
             }.navigationTitle("连接电脑").toolbar { Button("完成") { showDevices = false } }.disabled(model.busy)
@@ -102,6 +103,17 @@ struct ContentView: View {
         Button(action: run) { VStack(spacing: 8) { Image(systemName: icon).font(.title2); Text(title).font(.subheadline.weight(.medium)) }.frame(maxWidth: .infinity).padding(.vertical, 18).background(Color.white.opacity(0.08)).cornerRadius(18) }.buttonStyle(.plain)
     }
     private func parsePairing(_ text: String) { do { invitation = try Invitation.parse(text); confirmPair = true } catch { model.report(error) } }
+    private func queuePairing(_ text: String) {
+        pendingPairingText = text
+        if showDevices || showScanner { showDevices = false; showScanner = false }
+        else { completePairingPresentation() }
+    }
+    private func completePairingPresentation() {
+        guard let text = pendingPairingText else { return }
+        pendingPairingText = nil
+        // Wait for the scanner/device sheet to close before presenting its confirmation alert.
+        parsePairing(text)
+    }
     private func camera(_ video: Bool) { Task { do { try await requestCamera(video: video); cameraVideo = video; showCamera = true } catch { model.report(error) } } }
     private func importCamera(_ value: CameraResult) {
         Task {
