@@ -1,3 +1,4 @@
+#if canImport(CommandV)
 import XCTest
 import UIKit
 @testable import CommandV
@@ -82,3 +83,4 @@ import UIKit
         XCTAssertTrue(model.items.allSatisfy { FileManager.default.fileExists(atPath: $0.url.path) })
     }
 }
+#endif

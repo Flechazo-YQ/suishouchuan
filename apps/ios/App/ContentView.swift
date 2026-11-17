@@ -326,7 +326,9 @@ struct ContentView: View {
             model.busy = true
             defer { model.busy = false }
             do {
-                let item = video ? try await MediaImporter.video(file, into: directory) : try MediaImporter.image(file, into: directory)
+                let item: MediaItem
+                if video { item = try await MediaImporter.video(file, into: directory) }
+                else { item = try MediaImporter.image(file, into: directory) }
                 do { try model.appendCapture(item, burst: burst) }
                 catch { try? FileManager.default.removeItem(at: item.url); throw error }
                 model.message = ""
