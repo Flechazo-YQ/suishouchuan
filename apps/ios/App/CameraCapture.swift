@@ -18,7 +18,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
     private var configured = false
     private var wantsPreview = false
     private var wantsRecording = false
-    private var audioAdded = false
+    private var audioInput: AVCaptureDeviceInput?
     private var timer: Timer?
     private var startedAt: Date?
     private var observers: [NSObjectProtocol] = []
@@ -117,13 +117,19 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
         }
     }
     private func addAudio() throws {
-        guard !audioAdded else { return }
+        guard audioInput == nil else { return }
         guard let device = AVCaptureDevice.default(for: .audio) else { throw BridgeError.message("没有可用的麦克风") }
         let input = try AVCaptureDeviceInput(device: device)
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         guard session.canAddInput(input) else { throw BridgeError.message("麦克风正在被其他应用使用") }
-        session.addInput(input); audioAdded = true
+        session.addInput(input); audioInput = input
+    }
+    private func removeAudio() {
+        guard let input = audioInput else { return }
+        session.beginConfiguration()
+        session.removeInput(input); audioInput = nil
+        session.commitConfiguration()
     }
     func stopRecording() {
         if recording { finishing = true }
@@ -153,6 +159,8 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
         }
     }
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+        // Release microphone capture as soon as the movie ends, including duration-limit failures.
+        queue.async { self.removeAudio() }
         // Reaching maxRecordedDuration can include an error while still producing a valid movie.
         let completed = (error as NSError?)?.userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool ?? false
         if let error, !completed {
