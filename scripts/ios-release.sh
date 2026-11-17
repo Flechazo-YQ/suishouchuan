@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+mkdir -p build
 for variable in APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_PROFILE_APP APPLE_PROFILE_SHARE APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
   if [ -z "${!variable:-}" ]; then echo "Missing signing secret: $variable" >&2; exit 1; fi
 done
@@ -25,8 +26,14 @@ security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 security import "$SIGNING_DIR/distribution.p12" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
 security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
 security list-keychains -d user -s "$KEYCHAIN_PATH"
-mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-cp "$SIGNING_DIR/"*.mobileprovision "$HOME/Library/MobileDevice/Provisioning Profiles/"
+for profile_dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+  mkdir -p "$profile_dir"
+  for profile in "$SIGNING_DIR/"*.mobileprovision; do
+    security cms -D -i "$profile" > "$SIGNING_DIR/profile.plist"
+    profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$SIGNING_DIR/profile.plist")
+    cp "$profile" "$profile_dir/$profile_uuid.mobileprovision"
+  done
+done
 xcodebuild archive -project apps/ios/CommandV.xcodeproj -scheme CommandV \
   -destination 'generic/platform=iOS' -archivePath build/CommandV.xcarchive \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
