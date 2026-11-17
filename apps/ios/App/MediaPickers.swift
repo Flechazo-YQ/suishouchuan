@@ -32,7 +32,7 @@ struct CameraPicker: UIViewControllerRepresentable {
         let picker = UIImagePickerController()
         picker.sourceType = .camera
         picker.mediaTypes = [video ? UTType.movie.identifier : UTType.image.identifier]
-        picker.videoQuality = .typeMedium; picker.videoMaximumDuration = 120
+        picker.videoQuality = .typeMedium; picker.videoMaximumDuration = 30
         picker.cameraCaptureMode = video ? .video : .photo
         picker.delegate = context.coordinator
         return picker

@@ -1,5 +1,9 @@
 import XCTest
+#if canImport(CommandVCore)
+@testable import CommandVCore
+#else
 @testable import CommandV
+#endif
 
 final class ProtocolTests: XCTestCase {
     func testOnlyPrivateIPv4Accepted() {

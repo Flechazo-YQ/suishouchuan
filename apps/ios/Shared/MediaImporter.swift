@@ -42,6 +42,22 @@ enum MediaImporter {
 
     static func image(_ input: URL, into directory: URL) throws -> MediaItem {
         guard let source = CGImageSourceCreateWithURL(input as CFURL, nil) else { throw BridgeError.message("无法读取图片") }
+        guard CGImageSourceGetCount(source) == 1,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0, Double(width) * Double(height) <= 64_000_000 else {
+            throw BridgeError.message("仅支持 6400 万像素以内的静态图片")
+        }
+        let type = CGImageSourceGetType(source) as String?
+        if type == UTType.png.identifier || type == UTType.jpeg.identifier {
+            let bytes = try input.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+            guard bytes <= 32 * 1024 * 1024 else { throw BridgeError.message("图片超过 32 MB") }
+            let png = type == UTType.png.identifier
+            let output = directory.appendingPathComponent(UUID().uuidString + (png ? ".png" : ".jpg"))
+            try FileManager.default.copyItem(at: input, to: output)
+            return MediaItem(url: output, mime: png ? "image/png" : "image/jpeg")
+        }
         let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 4096, kCGImageSourceShouldCacheImmediately: true]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { throw BridgeError.message("图片格式不支持") }
         let png = (CGImageSourceGetType(source) as String?) == UTType.png.identifier
@@ -65,7 +81,7 @@ enum MediaImporter {
     static func video(_ input: URL, into directory: URL) async throws -> MediaItem {
         let asset = AVURLAsset(url: input)
         let duration = try await asset.load(.duration).seconds
-        guard duration.isFinite, duration > 0, duration <= 120 else { throw BridgeError.message("请选择 2 分钟以内的视频") }
+        guard duration.isFinite, duration > 0, duration <= 30.1 else { throw BridgeError.message("请选择 30 秒以内的视频") }
         guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else { throw BridgeError.message("无法转换视频") }
         let output = directory.appendingPathComponent(UUID().uuidString + ".mp4")
         exporter.outputURL = output; exporter.outputFileType = .mp4; exporter.shouldOptimizeForNetworkUse = true

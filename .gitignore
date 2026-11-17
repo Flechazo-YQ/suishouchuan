@@ -22,4 +22,6 @@ local.properties
 .cxx/
 .kotlin/
 build/
+.build/
+.swiftpm/
 apps/mobile/android/app/src/main/assets/index.android.bundle
