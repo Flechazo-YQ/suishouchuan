@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var captureFlash = false
     private var locked: Bool { model.busy || camera.capturing || camera.recording || camera.finishing }
     private var group: Bool { model.source == .burst || model.source == .library }
+    private var cameraVisible: Bool { scenePhase == .active && !reviewing && !showDevices && !showScanner && !scannerPending && !showLibrary && !showScreenTools && !testCamera }
     private var testCamera: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("--ui-camera")
@@ -80,15 +81,16 @@ struct ContentView: View {
             model.startDiscovery()
             if !testCamera { camera.start() }
         }
+        .onDisappear { camera.stop(); camera.captured = nil; model.stopDiscovery() }
         .onChange(of: burst) { value in model.switchCapture(burst: value) }
-        .onChange(of: reviewing) { value in
-            if value { camera.stop() } else if scenePhase == .active && !testCamera { camera.start() }
+        .onChange(of: cameraVisible) { value in
+            if value { camera.start() } else { camera.stop() }
         }
         .onChange(of: camera.error) { value in if !value.isEmpty { model.report(BridgeError.message(value)) } }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 do { try model.reload(); model.startDiscovery() } catch { model.report(error) }
-                if !reviewing && !testCamera { camera.start() }
+                if cameraVisible { camera.start() }
             } else { camera.stop(); model.stopDiscovery() }
         }
     }
@@ -317,7 +319,10 @@ struct ContentView: View {
         }
         #endif
         camera.takePhoto()
-        if !reduceMotion { captureFlash = true; withAnimation(.easeOut(duration: 0.2)) { captureFlash = false } }
+        if !reduceMotion {
+            captureFlash = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { withAnimation(.easeOut(duration: 0.2)) { captureFlash = false } }
+        }
     }
     private func importCapture(_ file: URL, video: Bool) {
         Task {

@@ -61,7 +61,7 @@ final class ProtocolTests: XCTestCase {
         for _ in 0..<20 {
             let retry = try UploadPayload.prepare([item], directory: directory, asBatch: true)
             XCTAssertEqual(retry.digest, first.digest)
-            XCTAssertEqual(try Data(contentsOf: retry.file), Data(contentsOf: first.file))
+            XCTAssertEqual(try Data(contentsOf: retry.file), try Data(contentsOf: first.file))
         }
         XCTAssertEqual(try UploadPayload.prepare([item], directory: directory).route, "/v1/images")
     }
