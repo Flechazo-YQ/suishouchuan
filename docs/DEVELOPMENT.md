@@ -59,7 +59,7 @@ Windows中文项目路径可能影响Android原生构建，现有脚本同步到
 
 ## 数据与边界
 
-Windows程序安装到`%LOCALAPPDATA%\Programs\ImageBridge`，配置和媒体缓存位于`%APPDATA%\随手传`。0.4.9 将显示名与安装包名称改为 CtrlV，保留该数据目录、安装身份、Android applicationId 和协议标识，避免更新丢失配对；开机启动项改为新可执行文件。未来 iPhone 版计划名为 CommandV，当前仓库不含 iOS 发布包。
+Windows程序安装到`%LOCALAPPDATA%\Programs\ImageBridge`，配置和媒体缓存位于`%APPDATA%\随手传`。0.4.9 将显示名与安装包名称改为 CtrlV，保留该数据目录、安装身份、Android applicationId 和协议标识，避免更新丢失配对；开机启动项改为新可执行文件。iPhone 版名为 CommandV，原生 SwiftUI 工程在 `apps/ios`，使用 GitHub macOS runner 编译、测试和签名上传 TestFlight，详见 [iPhone 开发与验收](IOS.md)。GitHub Release 中的 EXE / APK 仍只对应 Windows / Android。
 
 这些运行数据不属于源码，不能公开上传。手机私有outbox只暂存待发素材；详情见[缓存规则](CACHE-POLICY.md)。
 

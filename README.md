@@ -6,9 +6,9 @@
 
 **当前版本：0.4.9。Windows 托盘接收端 + Android App，无需业务云服务器。**
 
-**名称约定：Android 与 Windows 为 CtrlV；未来 iPhone 版计划使用 CommandV，目前尚未上架 App Store。** 0.4.9 从原名「随手传」升级，沿用原配对和缓存。
+**名称约定：Android 与 Windows 为 CtrlV；iPhone 版为 CommandV。** CommandV 原生工程和云端构建已加入仓库，正在进行内部测试，尚未上架 App Store。0.4.9 从原名「随手传」升级，沿用原配对和缓存。
 
-[下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md)
+[下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md) · [CommandV iPhone 版](docs/IOS.md)
 
 ## 看图上手：安装 → 扫码配对 → 拍照上传 → 粘贴到 AI
 
@@ -27,7 +27,7 @@
 
 Windows 安装包也内置 APK，可通过电脑配对面板中的局域网下载地址安装。发布页提供 SHA-256 校验文件；下载源码 ZIP 不是安装软件。
 
-Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。iPhone、macOS 和 Linux 接收端暂未提供。
+Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。CommandV iPhone 版连接同一个 Windows 接收端，功能与测试安装方式见 [iPhone 说明](docs/IOS.md)；macOS 和 Linux 接收端暂未提供。下方界面教程对应 Android / Windows。
 
 ### 2. 电脑显示二维码，手机扫一扫
 

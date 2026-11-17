@@ -2,6 +2,8 @@
 
 CommandV 通过同一 Wi-Fi 把照片、截图和短视频发送到现有 Windows CtrlV 接收端。照片不经过业务云服务器。GitHub Actions 的 macOS 机器仅编译源码、签名并上传测试安装包。
 
+2026-11-17：首个 TestFlight 内部构建 **1.0（14）** 已完成 Apple 处理并加入内部测试组，仅受邀账号可以安装，尚无公开邀请链接或 App Store 正式版本。云端协议联调、配对存储及界面测试已通过；iPhone 真机传输仍待验收。
+
 ## 当前功能
 
 - 扫描电脑二维码或粘贴 `imagebridge://pair` 链接；确认电脑名称后配对。
@@ -30,6 +32,8 @@ bash scripts/ios-test.sh
 云端工作流为 `.github/workflows/ios.yml`。开发分支涉及 iOS 的推送执行测试；通过后合入主线，手动运行并勾选 `upload` 才会签名上传 TestFlight。上传前核对成功测试记录；只有发布脚本或文档变化时，可在 `tested_commit` 填写已通过测试的完整提交 SHA。工作流会逐文件比较 iOS 工程、接收端和测试脚本，任何差异都会要求重新测试。不会自动提交 App Store 审核或正式上架。
 
 仓库 Secrets：`APPLE_CERTIFICATE_P12`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_PROFILE_APP`、`APPLE_PROFILE_SHARE`、`APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`。P12 与两个描述文件使用 Base64，API 私钥保留 PEM 文本。密钥不得写入源码或日志。主应用 Bundle ID 为 `com.flechazoyq.commandv`，分享扩展为 `com.flechazoyq.commandv.share`。
+
+上传后需等待 Apple 处理完成，再把构建分配给 TestFlight 内部测试组。安装者从邀请邮件进入 TestFlight；GitHub Release 的 EXE / APK 仍对应 Windows / Android。
 
 ## 真机验收
 
