@@ -62,7 +62,7 @@ class ScreenCaptureService : Service() {
         val stop = PendingIntent.getService(this, 7, Intent(this, ScreenCaptureService::class.java).setAction("STOP"), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val recording = screenRecorder != null
         val seconds = ((SystemClock.elapsedRealtime() - recordStarted) / 1000).coerceIn(0, 30)
-        return Notification.Builder(this, "capture").setSmallIcon(android.R.drawable.ic_menu_camera).setContentTitle(if (recording) "CtrlV · 录屏 ${seconds}s / 30s" else "CtrlV · 连续截屏")
+        return Notification.Builder(this, "capture").setSmallIcon(android.R.drawable.ic_menu_camera).setContentTitle(if (recording) "CtrlC · 录屏 ${seconds}s / 30s" else "CtrlC · 连续截屏")
             .setContentText(if (recording) "点悬浮「停止」可结束 · 完成后先预览" else "已截 ${collected.size} 张 · 点悬浮「截一张」，查看后确认发送")
             .setContentIntent(stop).setOngoing(true).addAction(Notification.Action.Builder(null, "结束并预览", stop).build()).build()
     }

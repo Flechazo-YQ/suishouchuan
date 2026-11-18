@@ -23,7 +23,7 @@ private struct ShareView: View {
             VStack(alignment: .leading, spacing: 22) {
                 Text("发送到电脑").font(.title2.bold())
                 if model.devices.isEmpty {
-                    Text("请先打开 CommandV，扫描 Windows CtrlV 上的二维码完成配对，再返回分享。").foregroundColor(.secondary)
+                    Text("请先打开 CommandC，扫描 Windows CtrlV 上的二维码完成配对，再返回分享。").foregroundColor(.secondary)
                 } else {
                     Picker("接收电脑", selection: Binding(get: { model.selectedId }, set: { model.select($0) })) { ForEach(model.devices) { Text($0.name).tag($0.id) } }.pickerStyle(.menu).disabled(model.busy || sent)
                 }
@@ -33,7 +33,7 @@ private struct ShareView: View {
                 Spacer()
                 if sent { Button("完成") { finish() }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity) }
                 else { Button("确认发送") { Task { sent = await model.send() } }.buttonStyle(.borderedProminent).disabled(model.busy || model.target == nil || model.items.isEmpty).frame(maxWidth: .infinity) }
-            }.padding(24).navigationTitle("CommandV").navigationBarTitleDisplayMode(.inline)
+            }.padding(24).navigationTitle("CommandC").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { finish() }.disabled(model.busy) } }
         }.navigationViewStyle(.stack)
             .task { model.startDiscovery(); await model.importProviders(providers) }

@@ -62,7 +62,7 @@ struct NativeScreenTools: View {
         .alert("清空本次屏幕素材？", isPresented: $discard) {
             Button("取消", role: .cancel) {}
             Button("清空", role: .destructive) { do { try capture.clearImported(); selected = nil } catch { capture.message = error.localizedDescription } }
-        } message: { Text("只清理 CommandV 的待发副本。") }
+        } message: { Text("只清理 CommandC 的待发副本。") }
     }
 
     private var captureGuide: some View {
@@ -70,16 +70,16 @@ struct NativeScreenTools: View {
             Text("用灵动岛逐张截图").font(.headline)
                 .accessibilityAddTraits(.isHeader)
             guideStep(1, "开始采集并授权", "点上方的「开始屏幕采集」，在系统面板允许共享整个屏幕。")
-            guideStep(2, "长按屏幕顶部的灵动岛", "切到要截图的 App，长按灵动岛里的 CommandV 活动，直到控制面板展开。")
+            guideStep(2, "长按屏幕顶部的灵动岛", "切到要截图的 App，长按灵动岛里的 CommandC 活动，直到控制面板展开。")
             guideStep(3, "点「截取」，向上轻扫收起", "约 1.5 秒后保存一张。灵动岛计数跳动表示已保存，再截下一张，最多 10 张。")
-            guideStep(4, "查看并整组发送", "长按灵动岛后点「查看」。采集结束后，也可回 CommandV 点右下「截屏 / 录屏」。点「预览并发送」，再点右上「确认并发送」。")
+            guideStep(4, "查看并整组发送", "长按灵动岛后点「查看」。采集结束后，也可回 CommandC 点右下「截屏 / 录屏」。点「预览并发送」，再点右上「确认并发送」。")
 
             DisclosureGroup("用操作按钮截图") {
-                Text("在配有操作按钮的 iPhone 上，打开「设置」→「操作按钮」，滑到「快捷指令」，点下方的选项，在 CommandV 下选「截取一张」。设置一次后，每次先在 CommandV 开始采集，再去目标 App 长按机身操作按钮，等约 1.5 秒即可截一张。")
+                Text("在配有操作按钮的 iPhone 上，打开「设置」→「操作按钮」，滑到「快捷指令」，点下方的选项，在 CommandC 下选「截取一张」。设置一次后，每次先在 CommandC 开始采集，再去目标 App 长按机身操作按钮，等约 1.5 秒即可截一张。")
                     .font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
             DisclosureGroup("用灵动岛录屏") {
-                Text("开始采集后，切到要录制的 App。长按灵动岛，点「录屏」后收起面板。结束时再长按灵动岛，点「停止录屏」。每段最长 30 秒。回 CommandV 的「截屏 / 录屏」预览并发送。")
+                Text("开始采集后，切到要录制的 App。长按灵动岛，点「录屏」后收起面板。结束时再长按灵动岛，点「停止录屏」。每段最长 30 秒。回 CommandC 的「截屏 / 录屏」预览并发送。")
                     .font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
         }

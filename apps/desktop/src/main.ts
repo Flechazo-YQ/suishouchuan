@@ -173,17 +173,17 @@ function updateTray() {
   ]));
 }
 async function startDownload() {
-  const apk = app.isPackaged ? path.join(process.resourcesPath, 'CtrlV.apk') : path.resolve(__dirname, '../../../release/android/CtrlV.apk');
+  const apk = app.isPackaged ? path.join(process.resourcesPath, 'CtrlC.apk') : path.resolve(__dirname, '../../../release/android/CtrlC.apk');
   if (!fs.existsSync(apk)) return;
   const key = randomBytes(16).toString('hex');
   downloadServer = http.createServer((req, res) => {
-    if (!isPrivate(req.socket.remoteAddress ?? '') || req.url !== '/' + key + '/CtrlV.apk' || req.method !== 'GET') {res.writeHead(404); res.end(); return;}
-    res.writeHead(200, {'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="CtrlV.apk"', 'Content-Length': fs.statSync(apk).size});
+    if (!isPrivate(req.socket.remoteAddress ?? '') || req.url !== '/' + key + '/CtrlC.apk' || req.method !== 'GET') {res.writeHead(404); res.end(); return;}
+    res.writeHead(200, {'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="CtrlC.apk"', 'Content-Length': fs.statSync(apk).size});
     fs.createReadStream(apk).pipe(res);
   });
   await new Promise<void>(resolve => {downloadServer!.once('error', () => resolve()); downloadServer!.listen(43822, '0.0.0.0', resolve);});
   const address = addresses()[0];
-  if (address && downloadServer.listening) downloadUrl = `http://${address}:43822/${key}/CtrlV.apk`;
+  if (address && downloadServer.listening) downloadUrl = `http://${address}:43822/${key}/CtrlC.apk`;
 }
 async function start() {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows 凭据加密不可用，无法安全保存配对信息');

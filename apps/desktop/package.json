@@ -1,7 +1,7 @@
 {
   "name": "imagebridge",
   "productName": "CtrlV",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "手机图片直达电脑剪贴板",
   "author": "ImageBridge",
   "private": true,
@@ -47,8 +47,8 @@
     ],
     "extraResources": [
       {
-        "from": "../../release/android/CtrlV.apk",
-        "to": "CtrlV.apk"
+        "from": "../../release/android/CtrlC.apk",
+        "to": "CtrlC.apk"
       },
       {
         "from": "resources/ffprobe.exe",

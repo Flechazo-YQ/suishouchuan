@@ -12,8 +12,8 @@ const archive = path.join(root, 'release/windows/win-unpacked/resources/app.asar
 const packaged = JSON.parse(extractFile(archive, 'package.json'));
 assert.equal(packaged.version, desktop.version);
 assert.equal(hash(extractFile(archive, 'dist/main.cjs')), hash(read('apps/desktop/dist/main.cjs')));
-const apkHash = hash(read('release/android/CtrlV.apk'));
-assert.equal(hash(read('release/windows/win-unpacked/resources/CtrlV.apk')), apkHash);
+const apkHash = hash(read('release/android/CtrlC.apk'));
+assert.equal(hash(read('release/windows/win-unpacked/resources/CtrlC.apk')), apkHash);
 for (const name of ['ffprobe.exe', 'FFmpeg-LICENSE.txt', 'FFmpeg-README.txt']) {
   assert.equal(hash(read('release/windows/win-unpacked/resources/' + name)), hash(read('apps/desktop/resources/' + name)));
 }

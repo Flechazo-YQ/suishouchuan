@@ -47,7 +47,7 @@ struct TransferDraft: Identifiable {
         guard !busy else { return }; busy = true; message = "正在配对…"; failure = false
         defer { busy = false }
         do {
-            let device = try await PinnedClient(invitation: invitation).pair(invitation, clientId: store.clientId(), name: "CommandV iPhone")
+            let device = try await PinnedClient(invitation: invitation).pair(invitation, clientId: store.clientId(), name: "CommandC iPhone")
             try store.save(device); try reload(); discovery.start(); message = "已连接「\(device.name)」"
         } catch { report(error) }
     }
@@ -134,7 +134,7 @@ struct TransferDraft: Identifiable {
     func clear() { guard !busy else { return }; items.forEach { try? FileManager.default.removeItem(at: $0.url) }; items = []; requestId = UUID() }
     func send() async -> Bool {
         guard !busy, let directory else { return false }
-        guard let target else { report(BridgeError.message("请先打开 CommandV 扫码配对电脑")); return false }
+        guard let target else { report(BridgeError.message("请先打开 CommandC 扫码配对电脑")); return false }
         busy = true; failure = false; message = "正在发送到「\(target.name)」…"
         defer { busy = false }
         do {

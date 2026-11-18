@@ -1,14 +1,14 @@
-# CtrlV · 手机素材直达电脑剪贴板
+# CtrlC / CommandC → CtrlV · 手机素材直达电脑剪贴板
 
-<img src="apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="CtrlV相机图标" width="88" />
+<img src="apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="手机发送端相机图标" width="88" />
 
 在 Android 手机上拍照、选图、连续截屏或录制短视频，通过局域网传到 Windows。电脑提示「已复制」后，按 **Ctrl+V** 就能把素材放进支持图片或文件的 AI 输入框、文档或其他软件。
 
 **当前版本：0.4.9。Windows 托盘接收端 + Android App，无需业务云服务器。**
 
-**名称约定：Android 与 Windows 为 CtrlV；iPhone 版为 CommandV。** CommandV 原生工程和云端构建已加入仓库，正在进行内部测试，尚未上架 App Store。0.4.9 从原名「随手传」升级，沿用原配对和缓存。
+**Windows 接收端为 CtrlV，Android 手机端为 CtrlC，iPhone 端为 CommandC，Mac 接收端命名为 CommandV。** 目前提供 Windows、Android 安装包及 iPhone 内部测试，Mac 版尚未提供。覆盖安装可沿用原配对和缓存。
 
-[下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md) · [CommandV iPhone 版](docs/IOS.md)
+[下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md) · [CommandC iPhone 版](docs/IOS.md)
 
 ## 看图上手：安装 → 扫码配对 → 拍照上传 → 粘贴到 AI
 
@@ -18,16 +18,16 @@
 
 | 设备 | 下载文件 | 安装后做什么 |
 | --- | --- | --- |
-| Windows x64 电脑 | [CtrlV-Setup-0.4.9.exe](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.9/CtrlV-Setup-0.4.9.exe) | 安装并打开「CtrlV」，留在系统托盘 |
-| Android arm64 手机 | [CtrlV-0.4.9-android-arm64.apk](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.9/CtrlV-0.4.9-android-arm64.apk) | 用手机浏览器下载，按系统提示允许该来源安装 |
+| Windows x64 电脑 | [CtrlV-Setup-0.4.10.exe](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlV-Setup-0.4.10.exe) | 安装并打开「CtrlV」，留在系统托盘 |
+| Android arm64 手机 | [CtrlC-0.4.10-android-arm64.apk](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlC-0.4.10-android-arm64.apk) | 用手机浏览器下载，按系统提示允许该来源安装 |
 
-电脑安装完成后打开「CtrlV」，保持托盘运行；手机安装完成后打开 App，按提示允许相机权限。让两端连接到可互通的局域网，例如连接同一个家庭 Wi-Fi。电脑端应显示绿色的「正在接收」。
+电脑安装完成后打开「CtrlV」，保持托盘运行；Android 手机安装完成后打开「CtrlC」，按提示允许相机权限。让两端连接到可互通的局域网，例如连接同一个家庭 Wi-Fi。电脑端应显示绿色的「正在接收」。
 
 从「随手传」升级可直接覆盖安装，不需要卸载或重新配对。Windows 若弹出防火墙提示，允许 CtrlV 在当前局域网通信；旧规则只绑定旧程序文件，改名后需要允许新程序。
 
 Windows 安装包也内置 APK，可通过电脑配对面板中的局域网下载地址安装。发布页提供 SHA-256 校验文件；下载源码 ZIP 不是安装软件。
 
-Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。CommandV iPhone 版连接同一个 Windows 接收端，功能与测试安装方式见 [iPhone 说明](docs/IOS.md)；macOS 和 Linux 接收端暂未提供。下方界面教程对应 Android / Windows。
+Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。CommandC iPhone 版连接同一个 Windows 接收端，功能与测试安装方式见 [iPhone 说明](docs/IOS.md)；CommandV（Mac）和 Linux 接收端暂未提供。下方界面教程对应 Android / Windows。
 
 ### 2. 电脑显示二维码，手机扫一扫
 
@@ -81,24 +81,24 @@ Android 最低声明支持 Android 8（API 26），当前真机验收设备为 A
 
 ## 原来怎么做，用了以后怎么做
 
-| 场景 | 原来的常见流程 | 用CtrlV后的流程 |
+| 场景 | 原来的常见流程 | 直传流程 |
 | --- | --- | --- |
-| 拍实物照片，让 AI 分析 | 手机拍照 → 微信文件传输助手 → 电脑微信打开图片 → 复制 → 粘贴到 AI | CtrlV拍照 → 预览并确认上传 → 电脑 AI 输入框 Ctrl+V |
+| 拍实物照片，让 AI 分析 | 手机拍照 → 微信文件传输助手 → 电脑微信打开图片 → 复制 → 粘贴到 AI | CtrlC 拍照 → 预览并确认上传 → 电脑 AI 输入框 Ctrl+V |
 | 截几个小程序页面，让 AI 对照布局 | 每页系统截图 → 整理相册 → 传到电脑 → 逐张添加附件 | 开启悬浮截屏 → 每页点「截一张」→ 查看整组 →「确认并发送」→ Ctrl+V |
 | 把已有的 10 张图发给 AI | 相册挑图 → 发微信 → 电脑下载整理 → 添加多个附件 | 左下相册图标 → 选 1–10 张并确认 → 自动传送 → Ctrl+V 粘贴独立图片 |
 | 给 Word/WPS 文档配一张图片 | 拍照 → 发微信 → 电脑另存为 → 文档插入图片 | 单张拍摄并上传 → 文档定位光标 → Ctrl+V；不接受图片粘贴时另存为后插入 |
 
-例如你在做商品页面：连续截下「首页、商品详情、下单页」，整组发到电脑，再在 AI 里粘贴三张图片，输入「请按这三个页面检查按钮间距和布局一致性」。CtrlV负责传图；提问内容和是否发送给 AI 由你决定。
+例如你在做商品页面：连续截下「首页、商品详情、下单页」，整组发到电脑，再在 AI 里粘贴三张图片，输入「请按这三个页面检查按钮间距和布局一致性」。CtrlC 与 CtrlV 负责传图；提问内容和是否发送给 AI 由你决定。
 
 ## 手机上的入口
 
 - **拍摄**：短按快门拍照；长按录像，松手结束，最长 30 秒。预览左上「×」重拍，右上「✓」确认上传。
-- **相册**：快门左边的图片图标。选择 1–10 张，确认选择后自动发送；系统相册多选后分享给「CtrlV」也可用。
+- **相册**：快门左边的图片图标。选择 1–10 张，确认选择后自动发送；系统相册多选后分享给「CtrlC」也可用。
 - **连拍**：点模式标签，或向左滑动取景画面。连续点按快门，最多 10 张；点缩略图或「查看 N 张」预览，右上「确认并发送」一次完成。
 - **截屏 / 录屏**：快门右边的图标。授权后点浮窗「截一张」收集截图，「查看图片」回 App 预览。录屏有计时和停止按钮，最长 30 秒。
 - **连拍中临时做别的事**：已有照片也能进入相册或截屏/录屏。原连拍组保留，新素材单独处理；完成后恢复原组，也可点「待发 N 张 · 查看」来回切换。
 
-系统截图与CtrlV浮窗是两条入口：手机系统截图不会自动加入CtrlV图集。连续截多个页面请用浮窗「截一张」；发送已有系统截图请用相册选择或系统分享。
+系统截图与CtrlC 浮窗是两条入口：手机系统截图不会自动加入 CtrlC 图集。连续截多个页面请用浮窗「截一张」；发送已有系统截图请用相册选择或系统分享。
 
 ## 到电脑后怎么粘贴
 
@@ -123,7 +123,7 @@ Android 最低声明支持 Android 8（API 26），当前真机验收设备为 A
 
 ## 当前验证与边界
 
-0.4.9 已通过 27 项自动化测试、两端类型检查和安装包一致性检查。Windows 已覆盖安装，验证原配对/证书/设置/缓存保留、开机启动路径更新、内置 APK 下载及图片/十图文件剪贴板；Android 已同签名覆盖安装 0.4.9（versionCode 14），原配对保留；桌面及系统分享入口显示 CtrlV。拍照和系统相册分享均已传到 Windows 原生剪贴板，独立读回的像素与接收图片一致，手机提示临时素材已清理。本轮未重跑完整录屏、图集和异常矩阵。
+此前的 0.4.9 已通过 27 项自动化测试、两端类型检查和安装包一致性检查。Windows 已覆盖安装，验证原配对/证书/设置/缓存保留、开机启动路径更新、内置 APK 下载及图片/十图文件剪贴板；Android 已同签名覆盖安装 0.4.9（versionCode 14），原配对保留；当时的桌面及系统分享入口显示 CtrlV，0.4.10 改为 CtrlC。拍照和系统相册分享均已传到 Windows 原生剪贴板，独立读回的像素与接收图片一致，手机提示临时素材已清理。本轮未重跑完整录屏、图集和异常矩阵。
 
 0.4.8 已实际安装验证：拍摄、图集、相册独立发送、连续截图、录屏主动停止、连拍保留与切换、电脑文件剪贴板和手机临时文件清理。27 项自动化测试通过。30 秒录屏上限在前版实机通过，本版未修改该原生逻辑。
 

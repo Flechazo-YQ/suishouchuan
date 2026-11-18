@@ -1,4 +1,4 @@
-name: CommandV iPhone
+name: CommandC iPhone
 on:
   push:
     branches: [codex/flechazo-yq]

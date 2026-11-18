@@ -7,7 +7,7 @@ import ActivityKit
         ActivityConfiguration(for: ScreenCaptureAttributes.self) { context in
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("CommandV · \(context.state.message)").font(.headline).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("CommandC · \(context.state.message)").font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                     Spacer()
                     Text("\(context.state.count)/10").monospacedDigit().contentTransition(.numericText())
                 }
@@ -16,7 +16,7 @@ import ActivityKit
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("CommandV").font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                    Text("CommandC").font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     Text("\(context.state.count)/10").font(.caption.monospacedDigit()).lineLimit(1).contentTransition(.numericText())

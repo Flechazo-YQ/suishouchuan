@@ -48,6 +48,7 @@ for bundle in [root,root/'PlugIns/CommandVShare.appex',root/'PlugIns/CommandVCap
     info=plistlib.loads((bundle/'Info.plist').read_bytes())
     assert info['UIDeviceFamily']==[1], 'Archive must target iPhone only'
     assert info['CFBundleVersion']==os.environ['BUILD_NUMBER'], 'Archive build number is incorrect'
+    assert info['CFBundleDisplayName']=='CommandC', 'Incorrect app or extension display name'
     if bundle.name!='CommandVCapture.appex':
         assert info['CommandVKeychainGroup']=='65635WN76L.com.flechazoyq.commandv', 'Shared pairing group is incorrect'
     records.append({key:info[key] for key in ['CFBundleIdentifier','CFBundleVersion','CFBundleShortVersionString','UIDeviceFamily','MinimumOSVersion','DTSDKName']})

@@ -109,7 +109,7 @@ import ActivityKit
 
     func requestFrame() throws {
         guard !pendingShot else { return }
-        guard canCapture else { throw BridgeError.message(active ? "请先处理当前素材；每组最多 10 张，录像时不能截图。" : "请先在 CommandV 开始屏幕采集。") }
+        guard canCapture else { throw BridgeError.message(active ? "请先处理当前素材；每组最多 10 张，录像时不能截图。" : "请先在 CommandC 开始屏幕采集。") }
         pendingShot = true
         let id = UUID()
         let current = generation
@@ -174,7 +174,7 @@ import ActivityKit
     }
 
     func toggleRecording() async throws {
-        guard active, let stream, !finishing, !pendingShot else { throw BridgeError.message("请先在 CommandV 开始屏幕采集。") }
+        guard active, let stream, !finishing, !pendingShot else { throw BridgeError.message("请先在 CommandC 开始屏幕采集。") }
         if recording { try endRecording(); return }
         guard files.isEmpty else { throw BridgeError.message("请先发送或清空当前截图组，再开始录屏。") }
         let file = directory.appendingPathComponent(UUID().uuidString + ".mp4")
@@ -250,7 +250,7 @@ import ActivityKit
               shotFailed: shotFailed)
     }
     private func startActivity() {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = "采集已开始；请开启实时活动，或使用操作按钮的 CommandV 快捷指令。"; return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = "采集已开始；请开启实时活动，或使用操作按钮的 CommandC 快捷指令。"; return }
         do { activity = try Activity.request(attributes: ScreenCaptureAttributes(), content: ActivityContent(state: state, staleDate: nil), pushType: nil) }
         catch { message = "采集已开始，但实时活动无法显示：\(error.localizedDescription)" }
     }

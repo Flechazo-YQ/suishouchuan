@@ -207,7 +207,7 @@ struct ContentView: View {
             Text(group ? "点缩略图查看 · 右上角确认并发送" : "右上角确认上传 · 左上角重新拍摄").font(.system(size: 12)).foregroundColor(.gray)
             Text(group ? "预览 \(min(reviewIndex + 1, model.items.count)) / \(model.items.count)" : model.items.first?.mime == "video/mp4" ? "视频" : "照片").font(.system(size: 18))
             Text("发送到：\(model.target?.name ?? "未配置电脑")").font(.system(size: 12)).foregroundColor(.gray)
-            Text("CommandV · 仅局域网传输").font(.system(size: 10)).foregroundColor(.gray)
+            Text("CommandC · 仅局域网传输").font(.system(size: 10)).foregroundColor(.gray)
         }.padding(.vertical, 20).frame(maxWidth: .infinity)
     }
     private var thumbnailStrip: some View {
@@ -274,11 +274,11 @@ struct ContentView: View {
                         }
                     } else {
                         Label("系统截图", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
-                        Text("用 iPhone 系统截屏后，点分享 → CommandV → 确认发送。连续截好几张，也可以在下方选取后一起发送。").foregroundColor(.secondary)
+                        Text("用 iPhone 系统截屏后，点分享 → CommandC → 确认发送。连续截好几张，也可以在下方选取后一起发送。").foregroundColor(.secondary)
                         Button("选择截图") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
                         Divider()
                         Label("系统录屏", systemImage: "record.circle").font(.title3.weight(.semibold))
-                        Text("在控制中心开始屏幕录制，结束后在「照片」中分享给 CommandV，或在下方选取。每段最多 30 秒。").foregroundColor(.secondary)
+                        Text("在控制中心开始屏幕录制，结束后在「照片」中分享给 CommandC，或在下方选取。每段最多 30 秒。").foregroundColor(.secondary)
                         Button("选择录屏视频") { openScreenLibrary(.videos) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
                         Text("选择完成后会发送到当前电脑，原来的连拍组会保留。").font(.footnote).foregroundColor(.secondary)
                     }

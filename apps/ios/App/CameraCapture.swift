@@ -40,7 +40,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
         await MainActor.run {
             self.authorized = granted
             if granted { self.start() }
-            else { self.error = "请在系统设置中允许 CommandV 使用相机" }
+            else { self.error = "请在系统设置中允许 CommandC 使用相机" }
         }
     }
     func start() {

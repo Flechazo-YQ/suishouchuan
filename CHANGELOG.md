@@ -1,6 +1,6 @@
 # 版本演进
 
-按实际开发顺序说明每一步解决什么问题。推荐使用 **0.4.9**。0.4.8 是首次在 GitHub 发布安装包；早期版本是本地开发、安装或验证阶段，不代表当时已在 GitHub 发布，也不建议安装已知有问题的旧版。
+按实际开发顺序说明每一步解决什么问题。推荐使用 **0.4.10**。0.4.8 是首次在 GitHub 发布安装包；早期版本是本地开发、安装或验证阶段，不代表当时已在 GitHub 发布，也不建议安装已知有问题的旧版。
 
 ## 0.1.0 · 2026-11-14 · 跑通手机到电脑
 
@@ -112,3 +112,9 @@ iPhone App与分享扩展、跨公网传输、自动粘贴、多电脑同时接�
 - APK 文件名为 `CtrlV-0.4.9-android-arm64.apk`，Windows 安装包为 `CtrlV-Setup-0.4.9.exe`。
 - iPhone 版计划使用 CommandV；此次不包含 iOS 安装包或 App Store 上架。
 - 拍摄、图集、截屏录屏、100 MB 混合缓存与 30 秒录制上限保持原行为。
+
+## 0.4.10 · 2026-11-18 · 按设备统一命名
+
+- Windows 接收端为 CtrlV，Android 手机端显示为 CtrlC，iPhone 为 CommandC，Mac 版预留 CommandV。
+- Android 启动器、系统分享、截屏录屏提示和 APK 文件名同步更新。Windows 内置新版 CtrlC APK，安装身份与局域网配对沿用。
+- iPhone 主应用、分享扩展、灵动岛及快捷指令显示 CommandC，保留原 Bundle ID 和共享 Keychain。
