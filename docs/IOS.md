@@ -2,7 +2,7 @@
 
 CommandV 通过同一 Wi-Fi 把照片、截图和短视频发送到现有 Windows CtrlV 接收端。照片不经过业务云服务器。GitHub Actions 的 macOS 机器仅编译源码、签名并上传测试安装包。
 
-2026-11-18：**1.0（25）** 已进入 TestFlight 原内部组。打开右下“截屏 / 录屏”即可看到四步说明，明确授权、长按灵动岛、截取后收起面板和确认发送，并可展开查看操作按钮及录屏说明。23 版已在真机验证首张灵动岛截图和操作按钮触发。
+2026-11-18 发布的 **1.0（27）** 已在原 TestFlight 内部组可用。iOS 27 及以上的“截屏 / 录屏”页集中显示跨 App 采集。已保存的截图或录屏从首页左下“相册”选取。23 版已在真机验证首张灵动岛截图和操作按钮触发。
 
 旧版 1.0（14）已由用户确认真机配对、照片发送/电脑粘贴和系统截图分享成功。新版 1.0（20）的协议、素材组切换、配对存储和模拟器界面测试通过；用户已确认更新后的取景、拍照、发送和电脑粘贴正常。长按录像、连拍与相册切换及异常权限行为仍需继续真机验收。
 
@@ -11,9 +11,9 @@ CommandV 通过同一 Wi-Fi 把照片、截图和短视频发送到现有 Window
 - 相机首页与 Android CtrlV 的操作布局对齐：黑色取景页、九宫格、左上配对电脑、中央快门，左下相册图标，右下截屏/录屏入口。
 - 轻触拍照，按住录像，松手或最长 30 秒结束。单张预览左上重新拍摄、右上勾选后确认上传；不提供闪光灯和镜头翻转按钮。
 - “拍摄 / 连拍”可点选或左右滑动，连拍最多 10 张，缩略图可预览和移除，右上“确认并发送”直接发送整组。
-- 相册选择完成后独立发送；原连拍组及其失败重试编号保留，发送成功后恢复。待发组可通过“待发 N 张 · 查看”切换。
+- 相册可选最多 10 张图片或一段 30 秒以内的视频。选择完成后独立发送，成功后恢复先前的连拍组。待发组可通过“待发 N 张 · 查看”切换。
 - iOS 27 右下“截屏 / 录屏”可开始跨 App 屏幕采集。授权后，在目标 App 长按屏幕顶部的灵动岛，展开 CommandV 控制面板。可逐张截取、开始或停止录屏，也可返回查看。截图约 1.5 秒后保存，每组最多 10 张，预览确认后整组发送。操作按钮也可绑定 CommandV 快捷指令。
-- 系统截图/录屏分享和导入入口继续保留，供旧系统及手动导入使用。
+- 低于 iOS 27 的系统继续在“截屏 / 录屏”页提供系统截图和录屏的导入方式。各版本都可通过系统分享菜单发送已保存的素材。
 - 扫描电脑二维码或粘贴 `imagebridge://pair` 链接；确认电脑名称后配对。
 - 配对保存在 iOS Keychain；主应用与系统分享扩展通过指定 Keychain 访问组共享配对。
 - 拍照、相册多选、预览移除、1–10 张图集，以及最长 30 秒的视频。
@@ -42,6 +42,8 @@ bash scripts/ios-test.sh
 仓库 Secrets：`APPLE_CERTIFICATE_P12`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_PROFILE_APP`、`APPLE_PROFILE_SHARE`、`APPLE_PROFILE_CAPTURE`、`APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`。P12 与三个描述文件使用 Base64，API 私钥保留 PEM 文本。密钥不得写入源码或日志。主应用 Bundle ID 为 `com.flechazoyq.commandv`，分享扩展为 `.share`，灵动岛扩展为 `.capture`。按 Apple DTS 澄清，无需示例中遗留的 `com.apple.developer.screen-recording` entitlement。
 
 上传后需等待 Apple 处理完成，再把构建分配给 TestFlight 内部测试组。安装者从邀请邮件进入 TestFlight；GitHub Release 的 EXE / APK 仍对应 Windows / Android。
+
+测试时遇到问题，可在 TestFlight 的 CommandV 页面发送反馈，也可在使用 CommandV 时通过系统截屏附上截图和说明。[Apple 的 TestFlight 反馈说明](https://developer.apple.com/cn/testflight/)
 
 ## 真机验收
 
