@@ -96,6 +96,26 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(app.buttons["相册"].waitForExistence(timeout: 3))
     }
 
+    func testActiveScreenCaptureUsesIslandControls() throws {
+        guard #available(iOS 27.0, *) else { throw XCTSkip("Native screen capture needs iOS 27") }
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-camera", "--ui-screen-capture-active"]
+        app.launch()
+        let screenTools = app.buttons["截屏 / 录屏"]
+        XCTAssertTrue(screenTools.waitForExistence(timeout: 10))
+        screenTools.tap()
+        app.buttons["开始屏幕采集"].tap()
+
+        let stop = app.buttons["停止采集"]
+        XCTAssertTrue(stop.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["1.5 秒后截取"].exists)
+        XCTAssertFalse(app.buttons["开始录屏"].exists)
+        attach(app, "CommandV active screen capture")
+
+        stop.tap()
+        XCTAssertTrue(app.buttons["开始屏幕采集"].waitForExistence(timeout: 3))
+    }
+
     private func attach(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)

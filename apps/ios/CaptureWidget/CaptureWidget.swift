@@ -6,23 +6,55 @@ import ActivityKit
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ScreenCaptureAttributes.self) { context in
             VStack(alignment: .leading, spacing: 12) {
-                HStack { Text("CommandV · \(context.state.message)").font(.headline); Spacer(); Text("\(context.state.count)/10") }
+                HStack {
+                    Text("CommandV · \(context.state.message)").font(.headline).lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer()
+                    Text("\(context.state.count)/10").monospacedDigit().contentTransition(.numericText())
+                }
                 captureButtons(context.state)
             }.padding().activityBackgroundTint(.black).activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) { Text("CommandV").font(.headline) }
-                DynamicIslandExpandedRegion(.trailing) { Text("\(context.state.count)/10").monospacedDigit() }
+                DynamicIslandExpandedRegion(.leading) {
+                    Text("CommandV").font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text("\(context.state.count)/10").font(.caption.monospacedDigit()).lineLimit(1).contentTransition(.numericText())
+                }
                 DynamicIslandExpandedRegion(.center) {
                     if context.state.recording, let start = context.state.startedAt { Text(start, style: .timer).monospacedDigit() }
-                    else { Text(context.state.pending ? "1.5 秒后截取 · 请收起面板" : "点一次，截取一张").font(.caption) }
+                    else {
+                        Text(context.state.pending ? "正在保存" : context.state.shotFailed == true ? "截图未保存" : "截取一张")
+                            .font(.caption).lineLimit(1)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) { captureButtons(context.state) }
-            } compactLeading: { Image(systemName: context.state.recording ? "record.circle.fill" : "rectangle.dashed").foregroundColor(context.state.recording ? .red : .green) }
-              compactTrailing: { Text(context.state.recording ? "录屏" : "\(context.state.count)/10").monospacedDigit() }
-              minimal: { Image(systemName: context.state.recording ? "record.circle.fill" : "rectangle.dashed") }
-              .widgetURL(URL(string: "imagebridge://screen"))
+            } compactLeading: {
+                if context.state.recording { Image(systemName: "record.circle.fill").foregroundStyle(.red) }
+                else { Image(systemName: "rectangle.dashed").foregroundStyle(.green) }
+            } compactTrailing: {
+                if context.state.recording { Text("录屏").font(.caption2).lineLimit(1) }
+                else { captureFeedback(context.state) }
+            } minimal: {
+                if context.state.recording { Image(systemName: "record.circle.fill").foregroundStyle(.red) }
+                else { captureFeedback(context.state) }
+            }
+            .widgetURL(URL(string: "imagebridge://screen"))
         }
+    }
+
+    private func captureFeedback(_ state: ScreenCaptureAttributes.ContentState) -> some View {
+        ZStack {
+            Text("\(state.count)")
+                .font(.caption2.weight(.semibold).monospacedDigit())
+                .contentTransition(.numericText())
+                .opacity(state.shotFailed == true ? 0 : 1)
+            if state.shotFailed == true {
+                Image(systemName: "exclamationmark.circle.fill").font(.caption2).foregroundStyle(.orange)
+            }
+        }
+        .frame(width: 20)
+        .accessibilityLabel(state.shotFailed == true ? "截图未保存" : "已保存 \(state.count) 张截图")
     }
     @ViewBuilder private func captureButtons(_ state: ScreenCaptureAttributes.ContentState) -> some View {
         HStack(spacing: 14) {

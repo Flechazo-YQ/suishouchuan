@@ -13,6 +13,7 @@ struct ScreenCaptureAttributes: ActivityAttributes {
         var pending: Bool
         var startedAt: Date?
         var message: String
+        var shotFailed: Bool?
     }
 }
 
@@ -24,7 +25,7 @@ struct CaptureScreenFrameIntent: LiveActivityIntent {
     static var supportedModes: IntentModes { .background }
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
-        try await ScreenCaptureSession.shared.captureFrame()
+        try await ScreenCaptureSession.shared.requestFrame()
         #else
         throw CaptureRoutingError()
         #endif

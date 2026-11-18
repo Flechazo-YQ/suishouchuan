@@ -19,10 +19,6 @@ struct NativeScreenTools: View {
                     Spacer()
                     Button("停止采集") { Task { await capture.stop() } }.disabled(capture.finishing)
                 }
-                HStack {
-                    Button("1.5 秒后截取") { run { try await capture.captureFrame() } }.disabled(!capture.canCapture)
-                    Button(capture.recording ? "停止录屏" : "开始录屏") { run { try await capture.toggleRecording() } }.disabled(capture.pendingShot || capture.finishing || !capture.files.isEmpty)
-                }.buttonStyle(.bordered)
             } else {
                 Button("开始屏幕采集") { capture.presentPicker() }.buttonStyle(.borderedProminent).frame(minHeight: 44).disabled(capture.finishing)
             }
@@ -75,7 +71,7 @@ struct NativeScreenTools: View {
                 .accessibilityAddTraits(.isHeader)
             guideStep(1, "开始采集并授权", "点上方的「开始屏幕采集」，在系统面板允许共享整个屏幕。")
             guideStep(2, "长按屏幕顶部的灵动岛", "切到要截图的 App，长按灵动岛里的 CommandV 活动，直到控制面板展开。")
-            guideStep(3, "点「截取」，立刻向上轻扫收起", "约 1.5 秒后保存一张。等计数增加，再长按灵动岛截下一张，最多 10 张。")
+            guideStep(3, "点「截取」，向上轻扫收起", "约 1.5 秒后保存一张。灵动岛计数跳动表示已保存，再截下一张，最多 10 张。")
             guideStep(4, "查看并整组发送", "长按灵动岛后点「查看」。采集结束后，也可回 CommandV 点右下「截屏 / 录屏」。点「预览并发送」，再点右上「确认并发送」。")
 
             DisclosureGroup("用操作按钮截图") {
@@ -103,7 +99,6 @@ struct NativeScreenTools: View {
         .font(.subheadline)
     }
 
-    private func run(_ action: @escaping () async throws -> Void) { Task { do { try await action() } catch { capture.message = error.localizedDescription } } }
 }
 
 private struct ScreenVideoPreview: View {
