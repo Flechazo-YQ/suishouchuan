@@ -12,7 +12,7 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
   const windows = process.platform === 'win32' ? await import('./windowsClipboard') : undefined;
   const readFiles = windows ? windows.clipboardFiles : readMacClipboardFiles;
   const original = await clipboard.read();
-  const saved = await Promise.all(original.map(async item => {
+  const saved = await Promise.all(original.filter(item => item.types.length > 0).map(async item => {
     const entries = await Promise.all(item.types.map(async type => [type, await item.getType(type)] as const));
     return new ClipboardItem(Object.fromEntries(entries));
   }));
