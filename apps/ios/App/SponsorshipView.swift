@@ -65,8 +65,8 @@ final class SponsorshipStore: ObservableObject {
         switch result {
         case .verified(let transaction):
             guard productIDs.contains(transaction.productID), transaction.productType == .consumable else { return }
-            if transaction.revocationDate == nil { notice = "感谢你的支持。" }
             await transaction.finish()
+            if transaction.revocationDate == nil { notice = "感谢你的支持。" }
         case .unverified(let transaction, _):
             guard productIDs.contains(transaction.productID) else { return }
             notice = "暂时无法验证赞助，请查看 App Store 购买记录。"
