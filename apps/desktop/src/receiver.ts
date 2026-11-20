@@ -135,7 +135,8 @@ export class Receiver {
     Object.assign(item, {status: 'receiving', error: undefined});
     if (!existing) this.store.state.transfers.push(item);
     this.store.save();
-    const partial = path.join(this.store.cache, id + '.part');
+    // AVFoundation selects its file parser from the staged file's extension.
+    const partial = path.join(this.store.cache, id + (videoUpload && process.platform === 'darwin' ? '.part.mp4' : '.part'));
     const started = performance.now();
     try {
       if (batchUpload) {

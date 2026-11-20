@@ -95,7 +95,7 @@ test('配对、加密上传、剪贴板确认与恢复策略', async t => {
       const video = fs.readFileSync(path.join(__dirname, 'fixtures/one-second.mp4')); const id = randomUUID();
       const extra = {...headers(id, sha256(video)), 'Content-Type': 'video/mp4'};
       const result = await request('/v1/videos', video, token, extra);
-      assert.equal(result.body.status, 'copied'); assert.equal(result.body.mime, 'video/mp4');
+      assert.equal(result.body.status, 'copied', String(result.body.error ?? '')); assert.equal(result.body.mime, 'video/mp4');
       assert.equal(result.body.width, 160); assert.ok(Number(result.body.durationMs) >= 900);
       const count = copies;
       assert.equal((await request('/v1/videos', video, token, extra)).body.status, 'copied'); assert.equal(copies, count);
