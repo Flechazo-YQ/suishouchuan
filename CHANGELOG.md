@@ -2,6 +2,13 @@
 
 按实际开发顺序说明每一步解决什么问题。推荐使用 **0.4.10**。0.4.8 是首次在 GitHub 发布安装包；早期版本是本地开发、安装或验证阶段，不代表当时已在 GitHub 发布，也不建议安装已知有问题的旧版。
 
+![Windows、Android、iPhone 和 Mac 的版本迭代历史图](docs/images/version-history.png)
+
+## Apple 端 · 2026-11-20
+
+- **CommandV 0.4.10 Intel 测试版**。增加 macOS Ventura 接收端，沿用局域网配对与传输协议。单图写入系统图片剪贴板，图集和视频写入文件剪贴板。已在 2017 Intel MacBook Pro 验证 iPhone 照片接收及跨应用粘贴。GitHub Intel 自动测试验证单图和 10 张有序文件剪贴板。测试包尚未完成 Apple 公证。
+- **CommandC 1.0（31）**。TestFlight 内测从构建 14 的配对、拍照和系统分享，迭代到构建 20 的连拍，构建 23 的灵动岛截屏，构建 25 的「长按灵动岛」引导，构建 27 的相册视频和构建 29 的截取计数。构建 31 将主应用、系统分享、灵动岛和快捷指令统一为 CommandC。[iPhone 操作说明](docs/IOS.md)
+
 ## 0.1.0 · 2026-11-14 · 跑通手机到电脑
 
 - 建立Windows托盘接收端与Android发送端。

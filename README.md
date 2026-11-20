@@ -1,14 +1,24 @@
-# CtrlC / CommandC → CtrlV · 手机素材直达电脑剪贴板
+# CtrlC / CommandC → CtrlV / CommandV · 手机素材直达电脑剪贴板
 
 <img src="apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="手机发送端相机图标" width="88" />
 
-在 Android 手机上拍照、选图、连续截屏或录制短视频，通过局域网传到 Windows。电脑提示「已复制」后，按 **Ctrl+V** 就能把素材放进支持图片或文件的 AI 输入框、文档或其他软件。
+在 Android 或 iPhone 上拍照、选图、连续截屏或录制短视频，通过局域网传给电脑。看到「已复制」后，在 Windows 按 **Ctrl+V**，在 Mac 按 **⌘V**，把素材粘贴到支持相应格式的输入框、文档或文件夹。
 
-**当前版本：0.4.9。Windows 托盘接收端 + Android App，无需业务云服务器。**
+**Windows / Android 当前发布版为 0.4.10。iPhone CommandC 为 TestFlight 1.0（31），Mac CommandV 为 Intel 0.4.10 测试版。**
 
-**Windows 接收端为 CtrlV，Android 手机端为 CtrlC，iPhone 端为 CommandC，Mac 接收端命名为 CommandV。** 目前提供 Windows、Android 安装包及 iPhone 内部测试，Mac 版尚未提供。覆盖安装可沿用原配对和缓存。
+Windows 接收端为 CtrlV，Android 手机端为 CtrlC，iPhone 端为 CommandC，Mac 接收端为 CommandV。传输在局域网内完成。Windows / Android 覆盖安装可沿用原配对和缓存。
 
 [下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md) · [CommandC iPhone 版](docs/IOS.md)
+
+## iPhone 与 Mac
+
+1. 将 iPhone 和 Mac 连到可互通的同一局域网。在 Mac 打开 CommandV，点左侧「＋ 配对手机」。在 iPhone 打开 CommandC，用「扫描配对二维码」扫 Mac 屏幕，核对电脑名称并确认。
+2. 在 iPhone 拍照，点右上角勾选并确认发送。Mac 显示「已复制」后，按 **⌘V**。单张照片可用 Mac「预览」的「文件 → 从剪贴板新建」打开。图集和视频可在 Finder 文件夹内粘贴。
+3. 在 iOS 27 上跨 App 截屏时，先在 CommandC 右下角开启屏幕采集。切到目标 App 后，**长按屏幕顶部的灵动岛**，点「截取」并向上轻扫收起面板。约 1.5 秒后计数增加。长按灵动岛点「查看」可预览并整组发送。
+
+<img src="docs/images/mac-received.png" alt="2017 Intel Mac 上的 CommandV 已接收 iPhone 测试照片并显示已复制，设备信息和缩略图已遮挡" width="799" />
+
+Mac 测试包面向 macOS Ventura 13 及以上的 Intel Mac。已在 2017 MacBook Pro（Ventura 13.7.8）验证安装启动、iPhone 配对、单图接收和粘贴到另一个 Mac 应用。当前构建采用测试签名，尚未完成 Apple 公证。[Mac 构建与自检](https://github.com/Flechazo-YQ/suishouchuan/actions/workflows/mac.yml) · [Apple 端操作图库](docs/images/README.md) · [版本迭代历史图](docs/images/version-history.png)
 
 ## 看图上手：安装 → 扫码配对 → 拍照上传 → 粘贴到 AI
 
@@ -27,7 +37,7 @@
 
 Windows 安装包也内置 APK，可通过电脑配对面板中的局域网下载地址安装。发布页提供 SHA-256 校验文件；下载源码 ZIP 不是安装软件。
 
-Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。CommandC iPhone 版连接同一个 Windows 接收端，功能与测试安装方式见 [iPhone 说明](docs/IOS.md)；CommandV（Mac）和 Linux 接收端暂未提供。下方界面教程对应 Android / Windows。
+Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。CommandC 可连接 Windows CtrlV 或 Intel Mac 上的 CommandV 测试版，功能与测试安装方式见 [iPhone 说明](docs/IOS.md)。下方界面教程对应 Android / Windows。
 
 ### 2. 电脑显示二维码，手机扫一扫
 
