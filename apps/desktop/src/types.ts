@@ -16,6 +16,7 @@ export interface Pairing {
   fingerprint: string; code: string; expiresAt: number;
 }
 export interface DesktopState {
+  isMac?: boolean;
   version: string; name: string; deviceId: string; addresses: string[]; port: number;
   fingerprint: string; settings: Settings; devices: Omit<Device, 'tokenHash'>[];
   transfers: (Transfer & {thumbnail?: string})[]; warning?: string;

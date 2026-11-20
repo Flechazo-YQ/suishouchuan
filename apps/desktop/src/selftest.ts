@@ -6,9 +6,11 @@ import {randomUUID} from 'node:crypto';
 import sharp from 'sharp';
 import {Receiver} from './receiver';
 import {sha256} from './store';
-import {clipboardFiles, clipboardSequence, verifyClipboard} from './windowsClipboard';
+import {readMacClipboardFiles} from './macPlatform';
 
 export async function runSelfTest(receiver: Receiver, copy: (filename: string) => Promise<void>) {
+  const windows = process.platform === 'win32' ? await import('./windowsClipboard') : undefined;
+  const readFiles = windows ? windows.clipboardFiles : readMacClipboardFiles;
   const original = await clipboard.read();
   const saved = await Promise.all(original.map(async item => {
     const entries = await Promise.all(item.types.map(async type => [type, await item.getType(type)] as const));
@@ -29,9 +31,14 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     });
   }
   try {
-    const before = clipboardSequence();
     let staleWriteRejected = false;
-    try {verifyClipboard('unchanged.png', before);} catch {staleWriteRejected = true;}
+    let missingFileRejected = false;
+    if (windows) {
+      const before = windows.clipboardSequence();
+      try {windows.verifyClipboard('unchanged.png', before);} catch {staleWriteRejected = true;}
+    } else {
+      try {await copy(path.join(receiver.store.cache, 'missing.png'));} catch {missingFileRejected = true;}
+    }
     const invitation = receiver.pairing();
     const paired = await request('/v1/pair', Buffer.from(JSON.stringify({code: invitation.code, clientId: randomUUID(), name: '本机验收'})));
     const token = String(paired.body.token);
@@ -53,17 +60,19 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     const videoPath = path.join(receiver.store.cache, 'clipboard-file-test.mp4');
     fs.writeFileSync(videoPath, 'Clipboard file reference test');
     await copy(videoPath);
-    const fileClipboard = clipboardFiles().includes(videoPath);
+    const filesAfterVideo = await readFiles();
+    const fileClipboard = filesAfterVideo.includes(fs.realpathSync(videoPath)) || filesAfterVideo.includes(videoPath);
     const batchManifest = Buffer.from(JSON.stringify({images: Array.from({length: 10}, () => ({bytes: image.length, mime: 'image/png', sha256: sha256(image)}))}));
     const batchPrefix = Buffer.alloc(4); batchPrefix.writeUInt32BE(batchManifest.length);
     const batchId = randomUUID();
     const batchResult = await request('/v1/batches', Buffer.concat([batchPrefix, batchManifest, ...Array.from({length: 10}, () => image)]), token,
       {'Content-Type': 'application/x-imagebridge-batch', 'X-Request-Id': batchId, 'X-Content-SHA256': sha256(batchManifest)});
-    const batchFiles = clipboardFiles();
+    const batchFiles = await readFiles();
     const batchClipboard = batchResult.body.status === 'copied' && batchFiles.length === 10 && batchFiles.every((file, index) => path.basename(file) === `${batchId}-${String(index + 1).padStart(2, '0')}.png`);
     const report = {pairing: paired.status === 201, transfer: result.body.status === 'copied', clipboard: {width: meta.width, height: meta.height, alpha: meta.hasAlpha},
-      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, staleWriteRejected, elapsedMs: elapsed, version: app.getVersion()};
-    if (!report.pairing || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !staleWriteRejected || meta.width !== 720) throw new Error(JSON.stringify(report));
+      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
+    const clipboardGuardPassed = windows ? staleWriteRejected : missingFileRejected;
+    if (!report.pairing || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !clipboardGuardPassed || meta.width !== 720) throw new Error(JSON.stringify(report));
     return report;
   } finally {agent.destroy(); if (saved.length) await clipboard.write(saved); else await clipboard.clear();}
 }

@@ -1,0 +1,56 @@
+name: CommandV Mac preview
+on:
+  push:
+    branches: [codex/flechazo-yq]
+    paths: ['apps/desktop/**', '.github/workflows/mac.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  intel:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and test the Intel receiver
+        working-directory: apps/desktop
+        run: |
+          test "$(uname -m)" = x86_64
+          node --version
+          npm ci --no-audit --no-fund
+          xcrun swiftc -parse-as-library -O -target x86_64-apple-macos13.0 resources/CommandVMac.swift -o resources/commandv-mac
+          xcrun vtool -show-build resources/commandv-mac
+          npm test
+          npm run build
+          npx --no-install electron-builder --config electron-builder.mac.cjs --mac zip --x64 --publish never
+      - name: Verify and test the packaged app
+        run: |
+          bundle=$(find "$PWD/release/macos" -name 'CommandV.app' -type d -maxdepth 3 -print -quit)
+          test -n "$bundle"
+          codesign --verify --deep --strict "$bundle"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$bundle/Contents/Info.plist")" = '13.0'
+          test "$(lipo -archs "$bundle/Contents/MacOS/CommandV")" = x86_64
+          test "$(lipo -archs "$bundle/Contents/Resources/commandv-mac")" = x86_64
+          xcrun vtool -show-build "$bundle/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
+          result="$PWD/release/macos/mac-selftest.json"
+          "$bundle/Contents/MacOS/CommandV" --data-dir="$RUNNER_TEMP/commandv-selftest" --self-test="$result" &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..50}; do
+            test -f "$result" && break
+            kill -0 "$app_pid" 2>/dev/null || break
+            sleep 1
+          done
+          test -f "$result"
+          cat "$result"
+          node -e "const r=require(process.argv[1]); if(!r.pairing || !r.transfer || !r.fileClipboard || !r.batchClipboard || !r.missingFileRejected) process.exit(1);" "$result"
+          (cd release/macos && shasum -a 256 CommandV-*.zip > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: commandv-mac-intel-${{ github.run_number }}
+          path: |
+            release/macos/CommandV-*.zip
+            release/macos/SHA256SUMS.txt
+            release/macos/mac-selftest.json
+          retention-days: 7

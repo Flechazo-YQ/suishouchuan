@@ -3,6 +3,7 @@ import {promisify} from 'node:util';
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
+import {inspectMacVideo} from './macPlatform';
 
 export const MAX_VIDEO_BYTES = 100_000_000;
 const execute = promisify(execFile);
@@ -12,6 +13,7 @@ export async function inspectVideo(filename: string) {
   const header = Buffer.alloc(12);
   try {await handle.read(header, 0, header.length, 0);} finally {await handle.close();}
   if (header.toString('ascii', 4, 8) !== 'ftyp') throw new Error('仅支持 MP4 视频');
+  if (process.platform === 'darwin') return inspectMacVideo(filename);
   const resource = path.join(process.resourcesPath ?? '', 'ffprobe.exe');
   const executable = fs.existsSync(resource) ? resource : path.resolve(__dirname, '../resources/ffprobe.exe');
   const {stdout} = await execute(executable, ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-probesize', '1048576', '-analyzeduration', '2000000', '-show_format', '-show_streams', '-of', 'json', filename], {timeout: 10000, maxBuffer: 65536, windowsHide: true});
