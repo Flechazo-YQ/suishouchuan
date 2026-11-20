@@ -117,7 +117,7 @@ struct ContentView: View {
                         Circle().fill(model.target == nil ? Color.gray : cameraAccent).frame(width: 6, height: 6)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(model.target?.name ?? "未配置电脑").font(.system(size: 13, weight: .medium)).lineLimit(1)
-                            Text(model.target?.addresses.first ?? "扫码连接 Windows CtrlV").font(.system(size: 10)).foregroundColor(.gray).lineLimit(1)
+                            Text(model.target?.addresses.first ?? "扫码连接 CtrlV 或 CommandV").font(.system(size: 10)).foregroundColor(.gray).lineLimit(1)
                         }
                         Spacer(minLength: 0)
                     }.frame(minHeight: 48)
@@ -258,7 +258,11 @@ struct ContentView: View {
                     TextField("或粘贴电脑端配对链接", text: $pairingText).textInputAutocapitalization(.never).autocorrectionDisabled()
                     Button("使用配对链接") { queuePairing(pairingText) }.disabled(pairingText.isEmpty)
                 }
-                Section { Button("打开系统权限设置", action: openSettings) }
+                Section {
+                    Button("打开系统权限设置", action: openSettings)
+                    Link("隐私政策", destination: URL(string: "https://github.com/Flechazo-YQ/suishouchuan/blob/main/docs/PRIVACY.md")!)
+                        .accessibilityIdentifier("privacyPolicy")
+                }
             }.navigationTitle("连接电脑").toolbar { Button("完成") { showDevices = false } }.disabled(model.busy)
         }.preferredColorScheme(.dark)
     }

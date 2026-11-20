@@ -13,6 +13,7 @@ final class LaunchTests: XCTestCase {
         app.buttons["配对电脑"].tap()
         XCTAssertTrue(app.navigationBars["连接电脑"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["扫描配对二维码"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["privacyPolicy"].firstMatch.exists)
         let pairing = XCTAttachment(screenshot: app.screenshot()); pairing.name = "CommandC pairing"; pairing.lifetime = .keepAlways; add(pairing)
         let expiry = Int64(Date().addingTimeInterval(300).timeIntervalSince1970 * 1000)
         let json = "{\"v\":1,\"deviceId\":\"12345678-1234-4234-8234-123456789abc\",\"name\":\"CI-PC\",\"addresses\":[\"192.168.1.2\"],\"port\":43821,\"fingerprint\":\"\(String(repeating: "a", count: 64))\",\"code\":\"\(String(repeating: "b", count: 32))\",\"expiresAt\":\(expiry)}"
