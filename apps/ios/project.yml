@@ -32,6 +32,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Shared/CommandV.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COMMANDV_APP
+        COMMANDC_SPONSORSHIP_PRODUCT_IDS: ''
     info:
       path: App/Info.plist
       properties:
@@ -44,6 +45,7 @@ targets:
           - CFBundleURLSchemes: [imagebridge]
             CFBundleURLName: com.flechazoyq.commandv.pair
         CommandVKeychainGroup: $(AppIdentifierPrefix)com.flechazoyq.commandv
+        CommandCSponsorshipProductIDs: $(COMMANDC_SPONSORSHIP_PRODUCT_IDS)
         NSCameraUsageDescription: 拍摄要发送到电脑的照片、视频，以及扫描电脑配对二维码。
         NSMicrophoneUsageDescription: 为发送到电脑的视频录制声音。
         NSScreenCaptureUsageDescription: 在你允许后截取屏幕图片或录制短视频，预览确认后发送到已配对电脑。
@@ -117,7 +119,11 @@ targets:
   CommandVTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [Tests]
+    sources:
+      - path: Tests
+        excludes: [CommandCSponsorshipFixture.storekit]
+      - path: Tests/CommandCSponsorshipFixture.storekit
+        buildPhase: resources
     dependencies:
       - target: CommandV
     settings:

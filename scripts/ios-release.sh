@@ -34,9 +34,14 @@ for profile_dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Lib
     cp "$profile" "$profile_dir/$profile_uuid.mobileprovision"
   done
 done
+case "${COMMANDC_SPONSORSHIP_PRODUCT_IDS:-}" in
+  ''|com.flechazoyq.commandv.sponsorship.once) ;;
+  *) echo 'Invalid CommandC sponsorship product ID' >&2; exit 1 ;;
+esac
 xcodebuild archive -project apps/ios/CommandV.xcodeproj -scheme CommandV \
   -destination 'generic/platform=iOS' -archivePath build/CommandV.xcarchive \
   CODE_SIGN_STYLE=Manual 'CODE_SIGN_IDENTITY=Apple Distribution' \
+  COMMANDC_SPONSORSHIP_PRODUCT_IDS="${COMMANDC_SPONSORSHIP_PRODUCT_IDS:-}" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
   2>&1 | tee build/ios-archive.log
 codesign --verify --deep --strict build/CommandV.xcarchive/Products/Applications/CommandV.app
@@ -51,6 +56,8 @@ for bundle in [root,root/'PlugIns/CommandVShare.appex',root/'PlugIns/CommandVCap
     assert info['CFBundleDisplayName']=='CommandC', 'Incorrect app or extension display name'
     if bundle.name!='CommandVCapture.appex':
         assert info['CommandVKeychainGroup']=='65635WN76L.com.flechazoyq.commandv', 'Shared pairing group is incorrect'
+    if bundle == root:
+        assert info.get('CommandCSponsorshipProductIDs', '') == os.getenv('COMMANDC_SPONSORSHIP_PRODUCT_IDS', ''), 'Sponsorship build setting did not expand'
     records.append({key:info[key] for key in ['CFBundleIdentifier','CFBundleVersion','CFBundleShortVersionString','UIDeviceFamily','MinimumOSVersion','DTSDKName']})
 json.dump(records,open('build/archive-metadata.json','w'),indent=2)
 PY

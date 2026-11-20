@@ -5,6 +5,7 @@ import ImageIO
 struct ContentView: View {
     @StateObject private var model = TransferModel()
     @StateObject private var camera = CameraCapture()
+    @StateObject private var sponsorship = SponsorshipStore()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var burst = false
@@ -78,6 +79,7 @@ struct ContentView: View {
             if url.scheme == "imagebridge", url.host == "screen" { showScreenTools = true }
             else { queuePairing(url.absoluteString) }
         }
+        .task { await sponsorship.observeTransactions() }
         .onAppear {
             model.switchCapture(burst: false)
             camera.captured = { file, video in importCapture(file, video: video) }
@@ -262,6 +264,9 @@ struct ContentView: View {
                     Button("打开系统权限设置", action: openSettings)
                     Link("隐私政策", destination: URL(string: "https://github.com/Flechazo-YQ/suishouchuan/blob/main/docs/PRIVACY.md")!)
                         .accessibilityIdentifier("privacyPolicy")
+                }
+                if sponsorship.enabled {
+                    Section { NavigationLink("支持开发者") { SponsorshipView(store: sponsorship) } }
                 }
             }.navigationTitle("连接电脑").toolbar { Button("完成") { showDevices = false } }.disabled(model.busy)
         }.preferredColorScheme(.dark)

@@ -1,0 +1,33 @@
+{
+  "identifier" : "D5251571",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "B075965D",
+      "localizations" : [
+        {
+          "description" : "One-time optional support for maintaining CommandC.",
+          "displayName" : "Support the Developer",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "一次性自愿支持 CommandC 的维护工作。",
+          "displayName" : "支持开发者",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "com.flechazoyq.commandv.sponsorship.once",
+      "referenceName" : "One-time developer support fixture",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA"
+  },
+  "subscriptionGroups" : [],
+  "version" : { "major" : 3, "minor" : 0 }
+}

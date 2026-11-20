@@ -9,6 +9,10 @@ on:
         description: Upload signed build to TestFlight
         type: boolean
         default: false
+      enable_sponsorship:
+        description: Enable the CommandC one-time support product in this signed build
+        type: boolean
+        default: false
       tested_commit:
         description: Previously tested commit when only release scripts or docs changed
         type: string
@@ -65,6 +69,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           BUILD_NUMBER: ${{ github.run_number }}
+          COMMANDC_SPONSORSHIP_PRODUCT_IDS: ${{ inputs.enable_sponsorship && 'com.flechazoyq.commandv.sponsorship.once' || '' }}
         run: bash scripts/ios-release.sh
       - name: Export test screenshots
         if: always()
