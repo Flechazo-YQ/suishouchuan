@@ -77,7 +77,7 @@ function secure(view: BrowserWindow) {
 function showWindow() {
   if (!window) {
     window = new BrowserWindow({...options(), width: 1060, height: 760, minWidth: 780, minHeight: 600, title: appName});
-    window.webContents.on('page-title-updated', event => event.preventDefault());
+    window.on('page-title-updated', event => event.preventDefault());
     secure(window);
     window.on('close', event => {if (!quitting) {event.preventDefault(); window?.hide();}});
     void window.loadFile(path.join(__dirname, 'renderer/index.html'));

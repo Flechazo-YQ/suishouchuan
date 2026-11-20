@@ -44,6 +44,23 @@ jobs:
           test -f "$result"
           cat "$result"
           node -e "const r=require(process.argv[1]); if(!r.pairing || !r.transfer || !r.fileClipboard || !r.batchClipboard || !r.missingFileRejected) process.exit(1);" "$result"
+          COMMANDV_BUNDLE="$bundle" node <<'NODE'
+          const assert = require('node:assert/strict');
+          const { _electron } = require('./apps/desktop/node_modules/playwright');
+          async function verifyWindow() {
+            const application = await _electron.launch({
+              executablePath: `${process.env.COMMANDV_BUNDLE}/Contents/MacOS/CommandV`,
+              args: [`--data-dir=${process.env.RUNNER_TEMP}/commandv-window`],
+            });
+            try {
+              const page = await application.firstWindow();
+              await page.getByText('等待第一张图片', {exact: true}).waitFor();
+              const title = await application.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows()[0].getTitle());
+              assert.equal(title, 'CommandV');
+            } finally {await application.close();}
+          }
+          verifyWindow().catch(error => {process.stderr.write(String(error) + '\n'); process.exitCode = 1;});
+          NODE
           (cd release/macos && shasum -a 256 CommandV-*.zip > SHA256SUMS.txt)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
