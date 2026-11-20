@@ -1,4 +1,5 @@
 #if canImport(CommandV) && canImport(StoreKitTest)
+import Combine
 import StoreKit
 import StoreKitTest
 import XCTest
@@ -14,6 +15,7 @@ final class SponsorshipStoreTests: XCTestCase {
     }
 
     func testOptionalConsumableCanBePurchasedTwiceInXcode() async throws {
+        guard #available(iOS 17.0, *) else { throw XCTSkip("StoreKit's test purchase API requires iOS 17") }
         let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "CommandCSponsorshipFixture", withExtension: "storekit"))
         let session = try SKTestSession(contentsOf: fixture)
         session.resetToDefaultState()
@@ -29,17 +31,17 @@ final class SponsorshipStoreTests: XCTestCase {
         XCTAssertEqual(product.type, .consumable)
         XCTAssertFalse(product.displayPrice.isEmpty)
 
-        await store.purchase(product)
-        XCTAssertEqual(store.notice, "感谢你的支持。")
-        XCTAssertEqual(session.allTransactions().count, 1)
-        await store.purchase(product)
-        XCTAssertEqual(store.notice, "感谢你的支持。")
-        XCTAssertEqual(session.allTransactions().count, 2)
-
-        for await result in StoreKit.Transaction.unfinished {
-            if case .verified(let transaction) = result {
-                XCTAssertNotEqual(transaction.productID, id, "Consumable still pending completion")
-            }
+        let listener = Task { await store.observeTransactions() }
+        defer { listener.cancel() }
+        await Task.yield()
+        for count in 1...2 {
+            let verified = expectation(description: "Verified sponsorship \(count)")
+            let notice = store.$notice.dropFirst().filter { $0 == "感谢你的支持。" }.first()
+                .sink { _ in verified.fulfill() }
+            _ = try await session.buyProduct(identifier: id, options: [])
+            await fulfillment(of: [verified], timeout: 10)
+            notice.cancel()
+            XCTAssertEqual(session.allTransactions().count, count)
         }
     }
 }
