@@ -48,8 +48,13 @@ for target, product in [('CommandV','CommandV.app'),('CommandVShare','CommandVSh
     assert info['CommandVKeychainGroup'] in entitlements.get('keychain-access-groups',[]), entitlements
     assert raw in (root/info['CFBundleExecutable']).read_bytes(), 'Simulator entitlement section missing'
 PY
+test_selection=(-parallel-testing-enabled NO)
+if [[ "${COMMANDC_TEST_SPONSORSHIP_ONLY:-0}" == '1' ]]; then
+  test_selection+=(-only-testing:CommandVTests/SponsorshipStoreTests -test-timeouts-enabled YES -default-test-execution-time-allowance 90 -maximum-test-execution-time-allowance 180)
+fi
 xcodebuild test-without-building -project apps/ios/CommandV.xcodeproj -scheme CommandV \
-  -destination "platform=iOS Simulator,id=$DEVICE_ID" -parallel-testing-enabled NO \
+  -destination "platform=iOS Simulator,id=$DEVICE_ID" \
   -derivedDataPath build/DerivedData -resultBundlePath build/ios-tests.xcresult \
+  "${test_selection[@]}" \
   2>&1 | tee build/ios-test.log
 xcrun xcresulttool get test-results summary --path build/ios-tests.xcresult > build/test-summary.json

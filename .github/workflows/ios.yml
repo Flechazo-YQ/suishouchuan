@@ -13,6 +13,10 @@ on:
         description: Enable the CommandC one-time support product in this signed build
         type: boolean
         default: false
+      test_sponsorship_only:
+        description: Run the time-bounded StoreKit tests on the preview branch
+        type: boolean
+        default: false
       tested_commit:
         description: Previously tested commit when only release scripts or docs changed
         type: string
@@ -56,6 +60,8 @@ jobs:
           PY
       - name: Build and test on iPhone simulator
         if: github.event_name != 'workflow_dispatch' || !inputs.upload
+        env:
+          COMMANDC_TEST_SPONSORSHIP_ONLY: ${{ inputs.test_sponsorship_only && '1' || '0' }}
         run: bash scripts/ios-test.sh
       - name: Archive and upload
         if: github.event_name == 'workflow_dispatch' && inputs.upload
