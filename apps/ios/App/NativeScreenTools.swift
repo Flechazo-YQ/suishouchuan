@@ -11,30 +11,35 @@ struct NativeScreenTools: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Label("跨 App 屏幕采集", systemImage: "rectangle.dashed.badge.record").font(.title3.weight(.semibold))
-            if capture.starting { ProgressView("等待系统授权…") }
+            Label("Capture Across Apps", systemImage: "rectangle.dashed.badge.record")
+                .font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+            if capture.starting { ProgressView("Waiting for screen access…") }
             else if capture.active {
-                HStack {
-                    Label(capture.recording ? "录屏中 \(capture.seconds) 秒" : "采集中 · \(capture.files.count)/10", systemImage: "circle.fill").foregroundColor(capture.recording ? .red : .green)
-                    Spacer()
-                    Button("停止采集") { Task { await capture.stop() } }.disabled(capture.finishing)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { activeStatus; Spacer(minLength: 0); stopButton }
+                    VStack(alignment: .leading, spacing: 4) { activeStatus; stopButton }
                 }
             } else {
-                Button("开始屏幕采集") { capture.presentPicker() }.buttonStyle(.borderedProminent).frame(minHeight: 44).disabled(capture.finishing)
+                Button { capture.presentPicker() } label: {
+                    Text("Start Screen Capture")
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.buttonStyle(.borderedProminent).disabled(capture.finishing)
             }
             if !capture.message.isEmpty { Text(capture.message).font(.footnote).foregroundColor(.secondary).accessibilityIdentifier("screenCaptureStatus") }
-            if capture.pendingShot || capture.finishing { ProgressView(capture.pendingShot ? "请收起控制面板，正在准备截图…" : "正在保存录屏…") }
+            if capture.pendingShot || capture.finishing { ProgressView(capture.pendingShot ? "Swipe up on the Dynamic Island to collapse it…" : "Saving recording…") }
             if !capture.files.isEmpty {
                 Divider()
-                Text(capture.isVideo ? "待发录屏" : "本次截图 · \(capture.files.count) 张").font(.headline)
+                Text(capture.isVideo ? "Recording Ready" : "Screenshots (\(capture.files.count))").font(.headline)
                 ScrollView(.horizontal) {
                     HStack(spacing: 12) {
                         ForEach(capture.files, id: \.self) { file in
                             VStack(spacing: 4) {
                                 Button { selected = file } label: {
                                     MediaThumbnail(item: MediaItem(url: file, mime: capture.isVideo ? "video/mp4" : "image/jpeg"), maxPixelSize: 240).scaledToFit().frame(width: 85, height: 110)
-                                }.accessibilityLabel("查看屏幕素材")
-                                Button("移除") { do { try capture.remove(file); if selected == file { selected = nil } } catch { capture.message = error.localizedDescription } }
+                                }.accessibilityLabel("Preview Capture")
+                                Button("Remove") { do { try capture.remove(file); if selected == file { selected = nil } } catch { capture.message = error.localizedDescription } }
                             }
                         }
                     }
@@ -44,7 +49,7 @@ struct NativeScreenTools: View {
                     else { MediaThumbnail(item: MediaItem(url: selected, mime: "image/jpeg")).scaledToFit().frame(maxHeight: 320) }
                 }
                 HStack {
-                    Button(importing ? "正在准备…" : "预览并发送") {
+                    Button(importing ? "Preparing…" : "Review and Send") {
                         importing = true
                         Task {
                             await capture.stop()
@@ -53,50 +58,59 @@ struct NativeScreenTools: View {
                             importing = false
                         }
                     }.buttonStyle(.borderedProminent).disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
-                    Button("清空", role: .destructive) { discard = true }.disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
+                    Button("Clear", role: .destructive) { discard = true }.disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
                 }
-                Text("只有在预览页确认后才发送；原来的相机连拍组会保留。").font(.footnote).foregroundColor(.secondary)
+                Text("Tap Send in the preview to transfer your captures. Your camera batch stays in CommandC.").font(.footnote).foregroundColor(.secondary)
             }
             captureGuide
         }
-        .alert("清空本次屏幕素材？", isPresented: $discard) {
-            Button("取消", role: .cancel) {}
-            Button("清空", role: .destructive) { do { try capture.clearImported(); selected = nil } catch { capture.message = error.localizedDescription } }
-        } message: { Text("只清理 CommandC 的待发副本。") }
+        .alert("Clear these captures?", isPresented: $discard) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear", role: .destructive) { do { try capture.clearImported(); selected = nil } catch { capture.message = error.localizedDescription } }
+        } message: { Text("This removes the draft copies in CommandC.") }
+    }
+
+    private var activeStatus: some View {
+        Label(capture.recording ? "Recording · \(capture.seconds) s" : "Capturing · \(capture.files.count)/10", systemImage: "circle.fill")
+            .foregroundColor(capture.recording ? .red : .green)
+    }
+
+    private var stopButton: some View {
+        Button("End Capture") { Task { await capture.stop() } }
+            .frame(minHeight: 44).disabled(capture.finishing)
     }
 
     private var captureGuide: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("用灵动岛逐张截图").font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Take screenshots with the Dynamic Island").font(.headline)
                 .accessibilityAddTraits(.isHeader)
-            guideStep(1, "开始采集并授权", "点上方的「开始屏幕采集」，在系统面板允许共享整个屏幕。")
-            guideStep(2, "长按屏幕顶部的灵动岛", "切到要截图的 App，长按灵动岛里的 CommandC 活动，直到控制面板展开。")
-            guideStep(3, "点「截取」，向上轻扫收起", "约 1.5 秒后保存一张。灵动岛计数跳动表示已保存，再截下一张，最多 10 张。")
-            guideStep(4, "查看并整组发送", "长按灵动岛后点「查看」。采集结束后，也可回 CommandC 点右下「截屏 / 录屏」。点「预览并发送」，再点右上「确认并发送」。")
+            guideStep(1, "Share your entire screen", "Tap Start Screen Capture. In the system prompt, choose to share your entire screen and confirm.")
+            guideStep(2, "Press and hold the Dynamic Island", "Open the app you want to capture. Press and hold the CommandC activity at the top of the screen until the controls expand.")
+            guideStep(3, "Tap Capture, then swipe up to collapse", "Wait about 1.5 seconds for the count to increase. Repeat to collect up to 10 screenshots.")
+            guideStep(4, "Review and send the batch", "Press and hold the Dynamic Island and tap Review, or reopen Screen Capture in CommandC. Tap Review and Send, then tap Send at the top right.")
 
-            DisclosureGroup("用操作按钮截图") {
-                Text("在配有操作按钮的 iPhone 上，打开「设置」→「操作按钮」，滑到「快捷指令」，点下方的选项，在 CommandC 下选「截取一张」。设置一次后，每次先在 CommandC 开始采集，再去目标 App 长按机身操作按钮，等约 1.5 秒即可截一张。")
+            DisclosureGroup("Take screenshots with the Action button") {
+                Text("If your iPhone has an Action button, go to Settings → Action Button → Shortcut. Tap Choose a Shortcut and select Capture Screenshot under CommandC. Start screen capture in CommandC, switch apps, then press and hold the Action button. A screenshot is saved after about 1.5 seconds.")
                     .font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
-            DisclosureGroup("用灵动岛录屏") {
-                Text("开始采集后，切到要录制的 App。长按灵动岛，点「录屏」后收起面板。结束时再长按灵动岛，点「停止录屏」。每段最长 30 秒。回 CommandC 的「截屏 / 录屏」预览并发送。")
+            DisclosureGroup("Record with the Dynamic Island") {
+                Text("Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Stop Recording. Recordings stop after 30 seconds. Tap Review to return to CommandC.")
                     .font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
-        }
+        }.padding(16).background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private func guideStep(_ number: Int, _ title: String, _ instruction: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(number).").monospacedDigit().accessibilityHidden(true)
+    private func guideStep(_ number: Int, _ title: LocalizedStringKey, _ instruction: LocalizedStringKey) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(number.formatted()).monospacedDigit().fontWeight(.semibold).foregroundStyle(cameraAccent)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).fontWeight(.semibold)
                 Text(instruction).foregroundStyle(.secondary)
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("第 \(number) 步：\(title)。\(instruction)")
-            .accessibilityIdentifier("screenCaptureGuideStep\(number)")
         }
         .font(.subheadline)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("screenCaptureGuideStep\(number)")
     }
 
 }

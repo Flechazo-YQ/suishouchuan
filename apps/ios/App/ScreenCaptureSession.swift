@@ -21,10 +21,10 @@ import ActivityKit
             return
         }
         #endif
-        message = "跨 App 屏幕采集需要在 iPhone 真机测试。"
+        message = String(localized: "Cross-app screen capture is available on an iPhone.")
     }
-    func requestFrame() throws { throw BridgeError.message("屏幕采集需要 iPhone 真机。") }
-    func toggleRecording() async throws { throw BridgeError.message("屏幕采集需要 iPhone 真机。") }
+    func requestFrame() throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
+    func toggleRecording() async throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func stop() async { active = false }
     func remove(_ file: URL) throws {}
     func clearImported() throws {}
@@ -76,10 +76,10 @@ import ActivityKit
     func presentPicker() {
         guard !starting, !active else { return }
         #if targetEnvironment(simulator)
-        message = "跨 App 屏幕采集需要在 iPhone 真机测试。"
+        message = String(localized: "Cross-app screen capture is available on an iPhone.")
         return
         #else
-        starting = true; message = "请在系统面板选择整个屏幕并允许共享。"
+        starting = true; message = String(localized: "Choose your entire screen and confirm sharing.")
         let picker = SCContentSharingPicker.shared
         var configuration = SCContentSharingPickerConfiguration()
         configuration.showsMicrophoneControl = false
@@ -97,19 +97,19 @@ import ActivityKit
             try next.addStreamOutput(observer, type: .screen, sampleHandlerQueue: .main)
             try await next.startCapture()
             stream = next; active = true; generation = UUID(); shotFailed = false
-            message = "已开始采集。切到目标 App，再用灵动岛或操作按钮截取。"
+            message = String(localized: "Capture is ready. Switch apps, then press and hold the Dynamic Island or Action button.")
             startActivity()
         } catch { fail(error); deactivatePicker() }
     }
 
     fileprivate func receive(_ frame: CVPixelBuffer) { if active { latestFrame = frame } }
     fileprivate func fail(_ error: Error) { starting = false; message = error.localizedDescription }
-    fileprivate func cancelled() { starting = false; message = "已取消屏幕采集"; deactivatePicker() }
+    fileprivate func cancelled() { starting = false; message = String(localized: "Screen capture cancelled."); deactivatePicker() }
     private func deactivatePicker() { SCContentSharingPicker.shared.remove(observer); SCContentSharingPicker.shared.isActive = false }
 
     func requestFrame() throws {
         guard !pendingShot else { return }
-        guard canCapture else { throw BridgeError.message(active ? "请先处理当前素材；每组最多 10 张，录像时不能截图。" : "请先在 CommandC 开始屏幕采集。") }
+        guard canCapture else { throw BridgeError.message(active ? String(localized: "Finish your recording or clear the current batch. A batch can hold up to 10 screenshots.") : String(localized: "Start screen capture in CommandC first.")) }
         pendingShot = true
         let id = UUID()
         let current = generation
@@ -132,7 +132,7 @@ import ActivityKit
         } catch {
             guard generation == current else { return }
             shotFailed = true
-            message = error is CancellationError ? "截图未完成，请再试一次。" : error.localizedDescription
+            message = error is CancellationError ? String(localized: "Couldn’t capture the screen. Try again.") : error.localizedDescription
             await updateActivity()
             return
         }
@@ -162,11 +162,11 @@ import ActivityKit
     }
 
     private func saveFrame(generation current: UUID) throws {
-        guard active, current == generation, let latestFrame else { throw BridgeError.message("未取得屏幕画面，请重新开始采集。") }
-        guard UIApplication.shared.applicationState != .active else { throw BridgeError.message("请先切到要截取的 App，再使用灵动岛或操作按钮。") }
+        guard active, current == generation, let latestFrame else { throw BridgeError.message(String(localized: "No screen image was available. Restart screen capture.")) }
+        guard UIApplication.shared.applicationState != .active else { throw BridgeError.message(String(localized: "Switch to the app you want to capture before using the Dynamic Island or Action button.")) }
         let image = CIImage(cvPixelBuffer: latestFrame)
-        guard let cgImage = context.createCGImage(image, from: image.extent), let data = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.94) else { throw BridgeError.message("截图转换失败") }
-        guard data.count <= 32 * 1024 * 1024, try totalBytes() + data.count <= 100_000_000 else { throw BridgeError.message("当前截图组已达 100 MB，请先发送。") }
+        guard let cgImage = context.createCGImage(image, from: image.extent), let data = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.94) else { throw BridgeError.message(String(localized: "Couldn’t convert the screenshot.")) }
+        guard data.count <= 32 * 1024 * 1024, try totalBytes() + data.count <= 100_000_000 else { throw BridgeError.message(String(localized: "Send the current batch first. It has reached 100 MB.")) }
         let file = directory.appendingPathComponent(UUID().uuidString + ".jpg")
         try data.write(to: file, options: .atomic)
         do { try persist(files + [file]); files.append(file) }
@@ -174,9 +174,9 @@ import ActivityKit
     }
 
     func toggleRecording() async throws {
-        guard active, let stream, !finishing, !pendingShot else { throw BridgeError.message("请先在 CommandC 开始屏幕采集。") }
+        guard active, let stream, !finishing, !pendingShot else { throw BridgeError.message(String(localized: "Start screen capture in CommandC first.")) }
         if recording { try endRecording(); return }
-        guard files.isEmpty else { throw BridgeError.message("请先发送或清空当前截图组，再开始录屏。") }
+        guard files.isEmpty else { throw BridgeError.message(String(localized: "Send or clear your screenshots before recording.")) }
         let file = directory.appendingPathComponent(UUID().uuidString + ".mp4")
         let configuration = SCRecordingOutputConfiguration(); configuration.outputURL = file
         let next = SCRecordingOutput(configuration: configuration, delegate: observer)
@@ -204,7 +204,7 @@ import ActivityKit
         timer?.invalidate(); timer = nil; output = nil; recording = false; finishing = false
         if let error { fail(error); if let pendingVideo { try? FileManager.default.removeItem(at: pendingVideo) } }
         else if let file = pendingVideo {
-            do { try persist([file]); files = [file]; message = "录屏已保存，点查看后确认发送。" }
+            do { try persist([file]); files = [file]; message = String(localized: "Recording saved. Tap Review, then send it from the preview.") }
             catch { fail(error) }
         }
         pendingVideo = nil
@@ -237,7 +237,7 @@ import ActivityKit
     }
 
     func clearImported() throws {
-        guard !recording, !finishing, !pendingShot else { throw BridgeError.message("请等待采集完成") }
+        guard !recording, !finishing, !pendingShot else { throw BridgeError.message(String(localized: "Wait for the capture to finish.")) }
         try persist([])
         files.forEach { try? FileManager.default.removeItem(at: $0) }; files = []
     }
@@ -246,13 +246,13 @@ import ActivityKit
     private func totalBytes() throws -> Int { try files.reduce(0) { try $0 + ($1.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) } }
     private var state: ScreenCaptureAttributes.ContentState {
         .init(count: files.count, recording: recording, pending: finishing, startedAt: videoStart,
-              message: recording ? "录屏中 · 最长 30 秒" : shotFailed ? "截图未保存" : "屏幕采集",
+              message: recording ? String(localized: "Recording · Up to 30 seconds") : shotFailed ? String(localized: "Not saved") : String(localized: "Capture active"),
               shotFailed: shotFailed)
     }
     private func startActivity() {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = "采集已开始；请开启实时活动，或使用操作按钮的 CommandC 快捷指令。"; return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = String(localized: "Capture is ready. Enable Live Activities or use the CommandC shortcut with the Action button."); return }
         do { activity = try Activity.request(attributes: ScreenCaptureAttributes(), content: ActivityContent(state: state, staleDate: nil), pushType: nil) }
-        catch { message = "采集已开始，但实时活动无法显示：\(error.localizedDescription)" }
+        catch { message = String(localized: "Capture is ready, but the Live Activity is unavailable: \(error.localizedDescription)") }
     }
     private func updateActivity() async { if let activity { await activity.update(ActivityContent(state: state, staleDate: nil)) } }
 }

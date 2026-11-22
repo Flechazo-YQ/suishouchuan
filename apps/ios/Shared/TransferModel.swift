@@ -9,7 +9,7 @@ struct TransferDraft: Identifiable {
     let source: MaterialSource
     let requestId: UUID
     var id: UUID { requestId }
-    var title: String { items.first?.mime == "video/mp4" ? "待发视频" : "待发 \(items.count) 张" }
+    var title: String { items.first?.mime == "video/mp4" ? String(localized: "Video ready") : String(localized: "Photos ready: \(items.count)") }
 }
 
 @MainActor final class TransferModel: ObservableObject {
@@ -44,23 +44,23 @@ struct TransferDraft: Identifiable {
     func removeDevice(_ id: String) { do { try store.remove(id); try reload() } catch { report(error) } }
     func report(_ error: Error) { failure = true; message = error.localizedDescription }
     func pair(_ invitation: Invitation) async {
-        guard !busy else { return }; busy = true; message = "正在配对…"; failure = false
+        guard !busy else { return }; busy = true; message = String(localized: "Pairing…"); failure = false
         defer { busy = false }
         do {
             let device = try await PinnedClient(invitation: invitation).pair(invitation, clientId: store.clientId(), name: "CommandC iPhone")
-            try store.save(device); try reload(); discovery.start(); message = "已连接「\(device.name)」"
+            try store.save(device); try reload(); discovery.start(); message = String(localized: "Paired with “\(device.name)”")
         } catch { report(error) }
     }
     func importProviders(_ providers: [NSItemProvider], separately: Bool = false, autoSend: Bool = false) async {
         guard !busy, let directory else { return }
-        guard !providers.isEmpty, providers.count + (separately ? 0 : items.count) <= 10 else { report(BridgeError.message("每组最多 10 张图片")); return }
-        busy = true; failure = false; message = "正在准备素材…"
+        guard !providers.isEmpty, providers.count + (separately ? 0 : items.count) <= 10 else { report(BridgeError.message(String(localized: "A batch can hold up to 10 images."))); return }
+        busy = true; failure = false; message = String(localized: "Preparing items…")
         var imported: [MediaItem] = []
         do {
             for provider in providers { imported.append(try await MediaImporter.load(provider, into: directory)) }
             try validate(separately ? imported : items + imported)
             if separately { beginIndependent(.library) }
-            try append(imported); message = "预览后点发送到电脑"
+            try append(imported); message = String(localized: "Review and send your items to the computer.")
         } catch {
             imported.forEach { try? FileManager.default.removeItem(at: $0.url) }
             report(error); busy = false; return
@@ -74,7 +74,7 @@ struct TransferDraft: Identifiable {
         items = all; requestId = UUID(); failure = false
     }
     func importScreenFiles(_ files: [URL]) async throws {
-        guard !busy, let directory, !files.isEmpty else { throw BridgeError.message("素材仍在处理中，请稍后再试") }
+        guard !busy, let directory, !files.isEmpty else { throw BridgeError.message(String(localized: "Your items are still being prepared. Try again shortly.")) }
         busy = true
         defer { busy = false }
         var imported: [MediaItem] = []
@@ -85,15 +85,15 @@ struct TransferDraft: Identifiable {
             }
             try validate(imported)
             beginIndependent(imported.first?.mime == "video/mp4" ? .video : .library)
-            try append(imported); message = "预览后确认发送到电脑"; failure = false
+            try append(imported); message = String(localized: "Review your captures, then tap Send."); failure = false
         } catch {
             imported.forEach { try? FileManager.default.removeItem(at: $0.url) }
             throw error
         }
     }
     private func validate(_ all: [MediaItem]) throws {
-        guard all.count <= 10, all.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else { throw BridgeError.message("每组最多 10 张、100 MB，请先发送已有素材") }
-        guard all.count <= 1 || all.allSatisfy({ $0.mime != "video/mp4" }) else { throw BridgeError.message("视频需单独发送，请先发送或清空当前素材") }
+        guard all.count <= 10, all.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else { throw BridgeError.message(String(localized: "Send your current batch first. Each batch holds up to 10 images and 100 MB.")) }
+        guard all.count <= 1 || all.allSatisfy({ $0.mime != "video/mp4" }) else { throw BridgeError.message(String(localized: "Send or clear the current items first. Videos must be sent individually.")) }
     }
     private var snapshot: TransferDraft { TransferDraft(items: items, source: source, requestId: requestId) }
     private func beginIndependent(_ next: MaterialSource) {
@@ -134,16 +134,19 @@ struct TransferDraft: Identifiable {
     func clear() { guard !busy else { return }; items.forEach { try? FileManager.default.removeItem(at: $0.url) }; items = []; requestId = UUID() }
     func send() async -> Bool {
         guard !busy, let directory else { return false }
-        guard let target else { report(BridgeError.message("请先打开 CommandC 扫码配对电脑")); return false }
-        busy = true; failure = false; message = "正在发送到「\(target.name)」…"
+        guard let target else { report(BridgeError.message(String(localized: "Open CommandC and scan a QR code to pair a computer first."))); return false }
+        busy = true; failure = false; message = String(localized: "Sending to “\(target.name)”…")
         defer { busy = false }
         do {
             let payload = try UploadPayload.prepare(items, directory: directory, asBatch: source == .burst || source == .library)
             defer { if payload.temporary { try? FileManager.default.removeItem(at: payload.file) } }
             let result = try await upload(target, payload, requestId)
-            guard result.status == "copied" else { throw BridgeError.message(result.error ?? "电脑尚未复制，请保留素材并重试") }
+            guard result.status == "copied" else {
+                let receiverDetail = Bundle.main.preferredLocalizations.first == "zh-Hans" ? result.error : nil
+                throw BridgeError.message(receiverDetail ?? String(localized: "The computer hasn’t copied the items. Keep them and try again."))
+            }
             items.forEach { try? FileManager.default.removeItem(at: $0.url) }; items = []; requestId = UUID()
-            message = "已复制到电脑，按 Ctrl+V 粘贴"; return true
+            message = String(localized: "Copied. Paste with Ctrl+V on Windows or ⌘V on Mac."); return true
         } catch { report(error); return false }
     }
     func cleanup() { discovery.stop(); if let directory { try? FileManager.default.removeItem(at: directory) } }

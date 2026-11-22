@@ -20,21 +20,35 @@ private struct ShareView: View {
     @State private var sent = false
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: 22) {
-                Text("发送到电脑").font(.title2.bold())
-                if model.devices.isEmpty {
-                    Text("请先打开 CommandC，扫描 Windows CtrlV 上的二维码完成配对，再返回分享。").foregroundColor(.secondary)
-                } else {
-                    Picker("接收电脑", selection: Binding(get: { model.selectedId }, set: { model.select($0) })) { ForEach(model.devices) { Text($0.name).tag($0.id) } }.pickerStyle(.menu).disabled(model.busy || sent)
+            VStack(alignment: .leading, spacing: 12) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Send to Computer").font(.title2.bold())
+                        if model.devices.isEmpty {
+                            Text("Open CommandC and scan the QR code in CtrlV for Windows or CommandV for Mac. Then return to this share sheet.")
+                                .foregroundColor(.secondary)
+                        } else {
+                            Picker("Computer", selection: Binding(get: { model.selectedId }, set: { model.select($0) })) {
+                                ForEach(model.devices) { Text($0.name).tag($0.id) }
+                            }.pickerStyle(.menu).disabled(model.busy || sent)
+                        }
+                        Label("Items ready: \(model.items.count)", systemImage: "photo.on.rectangle").font(.headline)
+                        if model.busy { ProgressView("Working…") }
+                        if !model.message.isEmpty {
+                            Text(model.message).foregroundColor(model.failure ? .orange : .secondary)
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
                 }
-                HStack { Image(systemName: "photo.on.rectangle"); Text("\(model.items.count) 份待发素材") }.font(.headline)
-                if model.busy { ProgressView("正在处理…") }
-                Text(model.message).foregroundColor(model.failure ? .orange : .secondary)
-                Spacer()
-                if sent { Button("完成") { finish() }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity) }
-                else { Button("确认发送") { Task { sent = await model.send() } }.buttonStyle(.borderedProminent).disabled(model.busy || model.target == nil || model.items.isEmpty).frame(maxWidth: .infinity) }
+                if sent {
+                    Button(action: finish) { Text("Done").frame(maxWidth: .infinity, minHeight: 44) }
+                        .buttonStyle(.borderedProminent)
+                } else {
+                    Button { Task { sent = await model.send() } } label: {
+                        Text("Confirm Send").frame(maxWidth: .infinity, minHeight: 44)
+                    }.buttonStyle(.borderedProminent).disabled(model.busy || model.target == nil || model.items.isEmpty)
+                }
             }.padding(24).navigationTitle("CommandC").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { finish() }.disabled(model.busy) } }
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { finish() }.disabled(model.busy) } }
         }.navigationViewStyle(.stack)
             .task { model.startDiscovery(); await model.importProviders(providers) }
             .onDisappear { model.cleanup() }

@@ -1,0 +1,4 @@
+"NSCameraUsageDescription" = "拍摄要发送到电脑的照片、视频，以及扫描电脑配对二维码。";
+"NSMicrophoneUsageDescription" = "为发送到电脑的视频录制声音。";
+"NSScreenCaptureUsageDescription" = "在你允许后截取屏幕图片或录制短视频，预览确认后发送到已配对电脑。";
+"NSLocalNetworkUsageDescription" = "通过同一 Wi-Fi 查找已配对的电脑并直接发送照片和视频。";

@@ -3,7 +3,13 @@ import CryptoKit
 
 enum BridgeError: LocalizedError {
     case message(String)
-    var errorDescription: String? { if case let .message(text) = self { return text }; return nil }
+    case receiver(status: Int, message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .message(text), let .receiver(_, text): return text
+        }
+    }
 }
 
 struct Invitation: Codable {
@@ -22,7 +28,7 @@ struct Invitation: Codable {
               url.scheme == "imagebridge", url.host == "pair",
               let json = url.queryItems?.first(where: { $0.name == "data" })?.value?.data(using: .utf8),
               let value = try? JSONDecoder().decode(Invitation.self, from: json) else {
-            throw BridgeError.message("请扫描 CtrlV 电脑端的配对二维码")
+            throw BridgeError.message(String(localized: "Scan the pairing QR code in CtrlV or CommandV."))
         }
         guard value.v == 1, UUID(uuidString: value.deviceId) != nil,
               !value.name.isEmpty, value.name.count <= 80,
@@ -30,10 +36,10 @@ struct Invitation: Codable {
               value.addresses.allSatisfy(isPrivateAddress), (1...65535).contains(value.port),
               value.fingerprint.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil,
               value.code.range(of: "^[A-Za-z0-9_-]{16,128}$", options: .regularExpression) != nil else {
-            throw BridgeError.message("配对信息无效，仅支持同一局域网内的电脑")
+            throw BridgeError.message(String(localized: "Invalid pairing information. Choose a computer on the same local network."))
         }
         guard value.expiresAt > now.timeIntervalSince1970 * 1000 else {
-            throw BridgeError.message("二维码已过期，请在电脑端刷新")
+            throw BridgeError.message(String(localized: "The pairing QR code expired. Refresh it on the computer."))
         }
         return value
     }
@@ -77,25 +83,25 @@ struct UploadPayload {
     let digest: String
     let temporary: Bool
     static func prepare(_ items: [MediaItem], directory: URL, asBatch: Bool = false) throws -> UploadPayload {
-        guard !items.isEmpty, items.count <= 10 else { throw BridgeError.message("每次请选择 1–10 张图片") }
+        guard !items.isEmpty, items.count <= 10 else { throw BridgeError.message(String(localized: "Choose 1–10 images.")) }
         for item in items {
             let limit = item.mime == "video/mp4" ? 100_000_000 : 32 * 1024 * 1024
-            guard item.bytes > 0, item.bytes <= limit else { throw BridgeError.message("单图上限 32 MB，视频上限 100 MB") }
+            guard item.bytes > 0, item.bytes <= limit else { throw BridgeError.message(String(localized: "Images can be up to 32 MB each. Videos can be up to 100 MB.")) }
         }
         if items.count == 1 && (!asBatch || items[0].mime == "video/mp4") {
             let item = items[0]
-            guard ["image/jpeg", "image/png", "video/mp4"].contains(item.mime) else { throw BridgeError.message("不支持的文件类型") }
+            guard ["image/jpeg", "image/png", "video/mp4"].contains(item.mime) else { throw BridgeError.message(String(localized: "This file type isn’t supported.")) }
             return UploadPayload(file: item.url, route: item.mime == "video/mp4" ? "/v1/videos" : "/v1/images", mime: item.mime, digest: try digestFile(item.url), temporary: false)
         }
         guard items.allSatisfy({ ["image/jpeg", "image/png"].contains($0.mime) }), items.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else {
-            throw BridgeError.message("图集仅支持图片，整组上限 100 MB")
+            throw BridgeError.message(String(localized: "A batch can contain images only, up to 100 MB in total."))
         }
         struct Entry: Encodable { let bytes: Int; let mime: String; let sha256: String }
         struct Manifest: Encodable { let images: [Entry] }
         // A retry must reproduce the same manifest digest for the same request ID.
         let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
         let header = try encoder.encode(Manifest(images: items.map { Entry(bytes: $0.bytes, mime: $0.mime, sha256: try digestFile($0.url)) }))
-        guard header.count <= 16384 else { throw BridgeError.message("图集信息过大") }
+        guard header.count <= 16384 else { throw BridgeError.message(String(localized: "The batch metadata is too large.")) }
         let file = directory.appendingPathComponent(UUID().uuidString + ".batch")
         FileManager.default.createFile(atPath: file.path, contents: nil)
         do {

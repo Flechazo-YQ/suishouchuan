@@ -2,8 +2,7 @@ import XCTest
 
 final class LaunchTests: XCTestCase {
     func testLaunchAndPairingScreen() {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launch()
         XCTAssertTrue(app.buttons["连接电脑"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["拍摄"].exists)
         XCTAssertTrue(app.buttons["连拍"].exists)
@@ -28,9 +27,7 @@ final class LaunchTests: XCTestCase {
     }
 
     func testBurstPreviewAndIndependentCapture() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-camera"]
-        app.launch()
+        let app = launch(["--ui-camera"])
         XCTAssertTrue(app.buttons["连拍"].waitForExistence(timeout: 10))
         app.buttons["连拍"].tap()
         let shutter = app.buttons["连拍：拍摄一张并继续取景"]
@@ -58,9 +55,7 @@ final class LaunchTests: XCTestCase {
     }
 
     func testSwipeModesAndScreenShareEntry() {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-camera"]
-        app.launch()
+        let app = launch(["--ui-camera"])
         let finder = app.otherElements["viewfinder"]
         XCTAssertTrue(finder.waitForExistence(timeout: 10))
         finder.swipeLeft()
@@ -99,9 +94,7 @@ final class LaunchTests: XCTestCase {
 
     func testActiveScreenCaptureUsesIslandControls() throws {
         guard #available(iOS 27.0, *) else { throw XCTSkip("Native screen capture needs iOS 27") }
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-camera", "--ui-screen-capture-active"]
-        app.launch()
+        let app = launch(["--ui-camera", "--ui-screen-capture-active"])
         let screenTools = app.buttons["截屏 / 录屏"]
         XCTAssertTrue(screenTools.waitForExistence(timeout: 10))
         screenTools.tap()
@@ -115,6 +108,67 @@ final class LaunchTests: XCTestCase {
 
         stop.tap()
         XCTAssertTrue(app.buttons["开始屏幕采集"].waitForExistence(timeout: 3))
+    }
+
+    func testEnglishCameraPairingAndScreenGuide() {
+        let app = launch(["--ui-camera"], language: "en", locale: "en_US")
+        let camera = app.buttons["Camera"]
+        let photos = app.buttons["Photos"]
+        let screen = app.buttons["Screen Capture"]
+        XCTAssertTrue(camera.waitForExistence(timeout: 10))
+        XCTAssertTrue(photos.isHittable)
+        XCTAssertTrue(screen.isHittable)
+        XCTAssertTrue(app.buttons["Connect Computer"].isHittable)
+        attach(app, "CommandC English camera")
+
+        app.buttons["Burst"].tap()
+        let shutter = app.buttons["Burst shutter"]
+        XCTAssertTrue(shutter.isHittable)
+        XCTAssertEqual(shutter.frame.midX, app.frame.midX, accuracy: 1)
+        shutter.tap()
+        let review = app.buttons["Review (1)"]
+        XCTAssertTrue(review.waitForExistence(timeout: 5))
+        review.tap()
+        XCTAssertTrue(app.buttons["Send"].isHittable)
+        XCTAssertTrue(app.staticTexts["Preview 1 / 1"].exists)
+        attach(app, "CommandC English preview")
+        app.buttons["Back to Camera"].tap()
+
+        app.buttons["Pair Computer"].tap()
+        XCTAssertTrue(app.navigationBars["Connect Computer"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Scan Pairing QR Code"].isHittable)
+        XCTAssertTrue(app.textFields["Or paste the pairing link"].exists)
+        attach(app, "CommandC English pairing")
+        app.buttons["Done"].tap()
+
+        screen.tap()
+        if #available(iOS 27.0, *) {
+            XCTAssertTrue(app.buttons["Start Screen Capture"].waitForExistence(timeout: 3))
+            let hold = app.descendants(matching: .any)["screenCaptureGuideStep2"].firstMatch
+            XCTAssertTrue(hold.isHittable)
+            XCTAssertTrue(hold.label.contains("Press and hold the Dynamic Island"))
+            let capture = app.descendants(matching: .any)["screenCaptureGuideStep3"].firstMatch
+            XCTAssertTrue(capture.label.contains("swipe up to collapse"))
+            attach(app, "CommandC English Dynamic Island guide")
+            let actionButton = app.buttons["Take screenshots with the Action button"]
+            for _ in 0..<4 where !actionButton.isHittable { app.swipeUp() }
+            XCTAssertTrue(actionButton.isHittable)
+            actionButton.tap()
+            let details = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "press and hold the Action button")).firstMatch
+            XCTAssertTrue(details.waitForExistence(timeout: 3))
+            for _ in 0..<2 where !details.isHittable { app.swipeUp() }
+            attach(app, "CommandC English Action button guide")
+        } else {
+            XCTAssertTrue(app.buttons["Choose Screenshots"].isHittable)
+            XCTAssertTrue(app.buttons["Choose a Recording"].exists)
+        }
+    }
+
+    private func launch(_ arguments: [String] = [], language: String = "zh-Hans", locale: String = "zh_CN") -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(\(language))", "-AppleLocale", locale] + arguments
+        app.launch()
+        return app
     }
 
     private func attach(_ app: XCUIApplication, _ name: String) {

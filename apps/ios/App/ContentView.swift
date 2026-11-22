@@ -47,7 +47,7 @@ struct ContentView: View {
         .foregroundColor(.white).preferredColorScheme(.dark).tint(cameraAccent)
         .sheet(isPresented: $showDevices, onDismiss: afterDevices) { deviceSheet }
         .sheet(isPresented: $showScanner, onDismiss: completePairingPresentation) {
-            NavigationView { QRScanner { queuePairing($0) }.navigationTitle("扫描电脑配对二维码").toolbar { Button("取消") { showScanner = false } } }
+            NavigationView { QRScanner { queuePairing($0) }.navigationTitle("Scan Computer QR Code").toolbar { Button("Cancel") { showScanner = false } } }
         }
         .sheet(isPresented: $showLibrary) {
             LibraryPicker(limit: 10, kind: libraryKind) { providers in
@@ -62,18 +62,24 @@ struct ContentView: View {
         .sheet(isPresented: $showScreenTools, onDismiss: {
             if libraryPending { libraryPending = false; showLibrary = true }
         }) { screenTools }
-        .alert("配对电脑", isPresented: $confirmPair) {
-            Button("取消", role: .cancel) {}
-            Button("确认配对") { if let invitation { Task { await model.pair(invitation) } } }
-        } message: { Text("允许向「\(invitation?.name ?? "")」发送素材？") }
-        .alert("发送到电脑", isPresented: $confirmUpload) {
-            Button("取消", role: .cancel) {}
-            Button("确认上传") { sendCurrent() }
-        } message: { Text("将这\(model.items.first?.mime == "video/mp4" ? "段视频" : "张照片")发送到「\(model.target?.name ?? "未配置电脑")」？") }
-        .alert("放弃这组素材？", isPresented: $confirmDiscard) {
-            Button("继续查看", role: .cancel) {}
-            Button("放弃", role: .destructive) { model.clear(); model.restoreLastDraft(); syncDraftPresentation() }
-        } message: { Text("只清理待发副本，相册原件保留。") }
+        .alert("Pair Computer", isPresented: $confirmPair) {
+            Button("Cancel", role: .cancel) {}
+            Button("Pair") { if let invitation { Task { await model.pair(invitation) } } }
+        } message: { Text("Allow sending to “\(invitation?.name ?? "")”?") }
+        .alert("Send to Computer", isPresented: $confirmUpload) {
+            Button("Cancel", role: .cancel) {}
+            Button("Send Now") { sendCurrent() }
+        } message: {
+            let destination = model.target?.name ?? String(localized: "No computer paired")
+            if model.items.first?.mime == "video/mp4" {
+                Text("Send this video to “\(destination)”?")
+            } else {
+                Text("Send this photo to “\(destination)”?")
+            } }
+        .alert("Discard this draft?", isPresented: $confirmDiscard) {
+            Button("Keep Reviewing", role: .cancel) {}
+            Button("Discard", role: .destructive) { model.clear(); model.restoreLastDraft(); syncDraftPresentation() }
+        } message: { Text("This removes the draft copies. Your originals stay in Photos.") }
         .onOpenURL { url in
             if url.scheme == "imagebridge", url.host == "screen" { showScreenTools = true }
             else { queuePairing(url.absoluteString) }
@@ -99,37 +105,43 @@ struct ContentView: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             if reviewing {
                 Button(action: leaveReview) { Image(systemName: "xmark").font(.system(size: 24, weight: .light)).frame(width: 48, height: 48) }
-                    .accessibilityLabel(group ? "返回取景" : "重新拍摄").disabled(locked)
+                    .accessibilityLabel(group ? "Back to Camera" : "Retake").disabled(locked)
                 Spacer()
                 Button {
                     if model.target == nil { showDevices = true }
                     else if group { sendCurrent() } else { confirmUpload = true }
                 } label: {
-                    if group { Text("确认并发送").font(.system(size: 14, weight: .semibold)).padding(.horizontal, 16).frame(height: 44).background(cameraAccent.opacity(0.13)).clipShape(Capsule()) }
+                    if group {
+                        Text("Send").font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 16).frame(minHeight: 44)
+                            .background(cameraAccent.opacity(0.13)).clipShape(Capsule())
+                    }
                     else { Image(systemName: "checkmark").font(.system(size: 29, weight: .semibold)).frame(width: 48, height: 48) }
-                }.foregroundColor(cameraAccent).accessibilityLabel(group ? "确认并发送" : "确认上传").disabled(locked || model.items.isEmpty)
+                }.foregroundColor(cameraAccent).accessibilityLabel(group ? "Send" : "Send Now").disabled(locked || model.items.isEmpty)
             } else {
                 Button { showDevices = true } label: {
                     HStack(spacing: 10) {
                         Circle().fill(model.target == nil ? Color.gray : cameraAccent).frame(width: 6, height: 6)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(model.target?.name ?? "未配置电脑").font(.system(size: 13, weight: .medium)).lineLimit(1)
-                            Text(model.target?.addresses.first ?? "扫码连接 CtrlV 或 CommandV").font(.system(size: 10)).foregroundColor(.gray).lineLimit(1)
+                            Text(model.target?.name ?? String(localized: "No computer paired"))
+                                .font(.subheadline.weight(.medium)).lineLimit(1)
+                            Text(model.target?.addresses.first ?? String(localized: "Scan a QR code to pair"))
+                                .font(.caption).foregroundColor(.gray).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
                     }.frame(minHeight: 48)
-                }.buttonStyle(.plain).accessibilityLabel("连接电脑").disabled(locked)
+                }.buttonStyle(.plain).accessibilityLabel("Connect Computer").disabled(locked)
                 if !model.items.isEmpty {
-                    Button("查看 \(model.items.count) 张") { reviewIndex = 0; reviewing = true }
+                    Button("Review (\(model.items.count))") { reviewIndex = 0; reviewing = true }
                         .font(.system(size: 13, weight: .medium)).foregroundColor(cameraAccent).frame(minHeight: 44).disabled(locked)
                 }
                 Button { showDevices = true } label: { Image(systemName: "qrcode.viewfinder").font(.system(size: 23)).frame(width: 44, height: 48) }
-                    .accessibilityLabel("配对电脑").disabled(locked)
+                    .accessibilityLabel("Pair Computer").disabled(locked)
             }
-        }.padding(.horizontal, 18).frame(height: 60)
+        }.padding(.horizontal, 18).padding(.vertical, 6).frame(minHeight: 60)
     }
 
     private var viewfinder: some View {
@@ -142,7 +154,7 @@ struct ContentView: View {
                             Group {
                                 if item.mime == "video/mp4" { VideoReview(url: item.url) }
                                 else { MediaThumbnail(item: item).scaledToFit() }
-                            }.tag(index).accessibilityLabel("预览第 \(index + 1) 张")
+                            }.tag(index).accessibilityLabel("Preview item \(index + 1)")
                         }
                     }.tabViewStyle(.page(indexDisplayMode: .never))
                 } else {
@@ -153,13 +165,13 @@ struct ContentView: View {
                 }
                 if camera.recording {
                     VStack {
-                        HStack(spacing: 8) { Circle().fill(Color.red).frame(width: 7, height: 7); Text(String(format: "00:%02d", camera.seconds)).monospacedDigit(); Button("停止") { camera.stopRecording() }.foregroundColor(.white) }
+                        HStack(spacing: 8) { Circle().fill(Color.red).frame(width: 7, height: 7); Text(String(format: "00:%02d", camera.seconds)).monospacedDigit(); Button("Stop") { camera.stopRecording() }.foregroundColor(.white) }
                             .font(.system(size: 13)).padding(.horizontal, 14).frame(height: 44).background(Color.black.opacity(0.65)).clipShape(Capsule())
                         Spacer()
                     }.padding(.top, 14)
                 }
                 if model.busy || camera.finishing {
-                    VStack(spacing: 12) { ProgressView().tint(.white); Text("正在处理…").font(.footnote) }
+                    VStack(spacing: 12) { ProgressView().tint(.white); Text("Working…").font(.footnote) }
                         .padding(22).background(Color.black.opacity(0.75)).cornerRadius(16)
                 }
                 if !model.message.isEmpty && !model.busy {
@@ -178,37 +190,50 @@ struct ContentView: View {
     }
     private var permissionView: some View {
         VStack(spacing: 18) {
-            Text("让眼前，即刻到电脑").font(.system(size: 20, weight: .medium))
-            Text("允许使用相机后即可拍摄").font(.system(size: 13)).foregroundColor(.gray)
-            Button("开启相机") { Task { await camera.authorize() } }
+            Text("Camera access").font(.title3.weight(.medium))
+            Text("Allow access to take photos, record video, and scan pairing codes.").font(.subheadline).foregroundColor(.gray)
+            Button("Allow Camera") { Task { await camera.authorize() } }
                 .font(.system(size: 14)).padding(.horizontal, 28).frame(height: 48).overlay(Capsule().stroke(Color.gray.opacity(0.6)))
-            Button("系统权限设置", action: openSettings).font(.system(size: 12)).foregroundColor(.gray).frame(minHeight: 44)
-        }.padding(24)
+            Button("Open Settings", action: openSettings).font(.system(size: 12)).foregroundColor(.gray).frame(minHeight: 44)
+        }.multilineTextAlignment(.center).padding(24)
     }
     private var captureFooter: some View {
         VStack(spacing: 9) {
             CaptureModeTabs(burst: $burst, locked: locked)
-            Text(camera.recording ? "松手完成 · 最长 30 秒" : burst ? "连续点按拍照 · 最多 10 张" : "轻触拍照，按住录像").font(.system(size: 12)).foregroundColor(.gray)
-            HStack {
-                Button { libraryKind = .all; showLibrary = true } label: { Image(systemName: "photo.on.rectangle.angled").font(.system(size: 27)).frame(width: 64, height: 64) }
-                    .accessibilityLabel("相册").disabled(locked)
-                Spacer()
+            Text(camera.recording ? "Release to finish. Up to 30 seconds." : burst ? "Tap for each photo. Up to 10." : "Tap for a photo. Hold for video.")
+                .font(.footnote).foregroundColor(.gray)
+            HStack(spacing: 8) {
+                captureTool("Photos", icon: "photo.on.rectangle.angled") {
+                    libraryKind = .all
+                    showLibrary = true
+                }
                 ShutterButton(burst: burst, recording: camera.recording, enabled: (camera.ready || testCamera) && !model.busy && !camera.capturing && !camera.finishing && (!burst || model.items.count < 10), photo: takePhoto, beginVideo: camera.startRecording, endVideo: camera.stopRecording)
-                Spacer()
-                Button { showScreenTools = true } label: {
-                    VStack(spacing: 5) { Image(systemName: "rectangle.dashed.badge.record").font(.system(size: 25)); Text("截屏 / 录屏").font(.system(size: 10)) }.frame(width: 72, height: 64)
-                }.accessibilityLabel("截屏 / 录屏").disabled(locked)
-            }.padding(.horizontal, 34)
-            Text(model.items.isEmpty ? "左滑连拍 · 右滑拍摄" : "可切换相册或截屏 · 这组照片会保留").font(.system(size: 10)).foregroundColor(.gray)
-        }.padding(.top, 14).padding(.bottom, 10)
+                captureTool("Screen Capture", icon: "rectangle.dashed.badge.record") { showScreenTools = true }
+            }
+            Text(model.items.isEmpty ? "Swipe left for Burst or right for Camera." : "Your batch stays here while you use Photos or Screen Capture.")
+                .font(.caption).foregroundColor(.gray)
+        }.multilineTextAlignment(.center).padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 10)
     }
+
+    private func captureTool(_ title: LocalizedStringKey, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: icon).font(.title2)
+                Text(title).font(.caption).fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 64)
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityLabel(Text(title)).disabled(locked)
+    }
+
     private var reviewFooter: some View {
-        VStack(spacing: 12) {
-            Text(group ? "点缩略图查看 · 右上角确认并发送" : "右上角确认上传 · 左上角重新拍摄").font(.system(size: 12)).foregroundColor(.gray)
-            Text(group ? "预览 \(min(reviewIndex + 1, model.items.count)) / \(model.items.count)" : model.items.first?.mime == "video/mp4" ? "视频" : "照片").font(.system(size: 18))
-            Text("发送到：\(model.target?.name ?? "未配置电脑")").font(.system(size: 12)).foregroundColor(.gray)
-            Text("CommandC · 仅局域网传输").font(.system(size: 10)).foregroundColor(.gray)
-        }.padding(.vertical, 20).frame(maxWidth: .infinity)
+        let destination = model.target?.name ?? String(localized: "No computer paired")
+        return VStack(spacing: 12) {
+            Text(group ? "Tap a thumbnail to review, then tap Send." : "Tap the checkmark to send or the × to retake.").font(.system(size: 12)).foregroundColor(.gray)
+            Text(group ? "Preview \(min(reviewIndex + 1, model.items.count)) / \(model.items.count)" : model.items.first?.mime == "video/mp4" ? "Video" : "Photo").font(.system(size: 18))
+            Text("To \(destination)").font(.system(size: 12)).foregroundColor(.gray)
+            Text("CommandC · Local network only").font(.system(size: 10)).foregroundColor(.gray)
+        }.multilineTextAlignment(.center).padding(.horizontal, 20).padding(.vertical, 20).frame(maxWidth: .infinity)
     }
     private var thumbnailStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -218,12 +243,12 @@ struct ContentView: View {
                         Button { reviewIndex = index; reviewing = true } label: {
                             MediaThumbnail(item: item, maxPixelSize: 200).scaledToFill().frame(width: 62, height: 62).clipped().cornerRadius(8)
                                 .overlay(alignment: .bottomLeading) { Text("\(index + 1)").font(.system(size: 10)).padding(4).background(Color.black.opacity(0.7)).cornerRadius(4) }
-                        }.accessibilityLabel("查看第 \(index + 1) 张")
+                        }.accessibilityLabel("View item \(index + 1)")
                         Button {
                             model.removeItem(item.id); reviewIndex = max(0, min(reviewIndex, model.items.count - 1))
                             if model.items.isEmpty { reviewing = false; model.restoreLastDraft(); syncDraftPresentation() }
                         } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 21)).symbolRenderingMode(.palette).foregroundStyle(.white, .black).frame(width: 44, height: 44) }
-                            .accessibilityLabel("移除第 \(index + 1) 张").offset(x: 8, y: -8)
+                            .accessibilityLabel("Remove item \(index + 1)").offset(x: 8, y: -8)
                     }
                 }
             }.padding(.horizontal, 12).padding(.vertical, 10)
@@ -233,7 +258,7 @@ struct ContentView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(model.savedDrafts) { draft in
-                    Button("\(draft.title) · 查看") { model.selectDraft(draft.id); syncDraftPresentation(review: true) }
+                    Button("Review · \(draft.title)") { model.selectDraft(draft.id); syncDraftPresentation(review: true) }
                         .font(.system(size: 12)).padding(.horizontal, 14).frame(height: 40).background(cameraAccent.opacity(0.12)).clipShape(Capsule()).foregroundColor(cameraAccent)
                 }
             }.padding(.horizontal, 12)
@@ -243,27 +268,28 @@ struct ContentView: View {
     private var deviceSheet: some View {
         NavigationView {
             List {
-                Section("已配对电脑") {
+                Section("Paired Computers") {
                     ForEach(model.devices) { device in Button { model.select(device.id); showDevices = false } label: { HStack { Text(device.name); Spacer(); if device.id == model.selectedId { Image(systemName: "checkmark") } } } }
                         .onDelete { offsets in
                             let ids = offsets.map { model.devices[$0].id }
                             ids.forEach(model.removeDevice)
                         }
-                    if model.devices.isEmpty { Text("两端连接同一 Wi-Fi 后，扫描电脑上的二维码。").foregroundColor(.secondary) }
+                    if model.devices.isEmpty { Text("Connect both devices to the same Wi-Fi. Then scan the QR code shown in CtrlV for Windows or CommandV for Mac.").foregroundColor(.secondary) }
                 }
                 Section {
-                    Button("扫描配对二维码") {
+                    Button("Scan Pairing QR Code") {
                         Task { do { try await requestCamera(video: false); scannerPending = true; showDevices = false } catch { model.report(error); showDevices = false } }
                     }
-                    TextField("或粘贴电脑端配对链接", text: $pairingText).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button("使用配对链接") { queuePairing(pairingText) }.disabled(pairingText.isEmpty)
+                    TextField("Or paste the pairing link", text: $pairingText)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button("Use Pairing Link") { queuePairing(pairingText) }.disabled(pairingText.isEmpty)
                 }
                 Section {
-                    Button("打开系统权限设置", action: openSettings)
-                    Link("隐私政策", destination: URL(string: "https://github.com/Flechazo-YQ/suishouchuan/blob/main/docs/PRIVACY.md")!)
+                    Button("Open Permission Settings", action: openSettings)
+                    Link("Privacy Policy", destination: URL(string: "https://github.com/Flechazo-YQ/suishouchuan/blob/main/docs/PRIVACY.md")!)
                         .accessibilityIdentifier("privacyPolicy")
                 }
-            }.navigationTitle("连接电脑").toolbar { Button("完成") { showDevices = false } }.disabled(model.busy)
+            }.navigationTitle("Connect Computer").toolbar { Button("Done") { showDevices = false } }.disabled(model.busy)
         }.preferredColorScheme(.dark)
     }
     private var screenTools: some View {
@@ -277,17 +303,17 @@ struct ContentView: View {
                             syncDraftPresentation(review: true)
                         }
                     } else {
-                        Label("系统截图", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
-                        Text("用 iPhone 系统截屏后，点分享 → CommandC → 确认发送。连续截好几张，也可以在下方选取后一起发送。").foregroundColor(.secondary)
-                        Button("选择截图") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
+                        Label("iPhone Screenshots", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
+                        Text("Take a screenshot on your iPhone, then tap Share → CommandC → Confirm Send. To send several at once, select them below.").foregroundColor(.secondary)
+                        Button("Choose Screenshots") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
                         Divider()
-                        Label("系统录屏", systemImage: "record.circle").font(.title3.weight(.semibold))
-                        Text("在控制中心开始屏幕录制，结束后在「照片」中分享给 CommandC，或在下方选取。每段最多 30 秒。").foregroundColor(.secondary)
-                        Button("选择录屏视频") { openScreenLibrary(.videos) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
-                        Text("选择完成后会发送到当前电脑，原来的连拍组会保留。").font(.footnote).foregroundColor(.secondary)
+                        Label("iPhone Screen Recordings", systemImage: "record.circle").font(.title3.weight(.semibold))
+                        Text("Record from Control Center, then share the recording from Photos or select it below. Each clip can be up to 30 seconds.").foregroundColor(.secondary)
+                        Button("Choose a Recording") { openScreenLibrary(.videos) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
+                        Text("Selected items go to the current computer. Your camera batch stays in CommandC.").font(.footnote).foregroundColor(.secondary)
                     }
                 }.padding(24)
-            }.navigationTitle("截屏 / 录屏").navigationBarTitleDisplayMode(.inline).toolbar { Button("完成") { showScreenTools = false } }
+            }.navigationTitle("Screen Capture").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { showScreenTools = false } }
         }.preferredColorScheme(.dark)
     }
     private func openScreenLibrary(_ kind: LibraryPicker.Kind) { libraryKind = kind; libraryPending = true; showScreenTools = false }

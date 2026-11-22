@@ -20,7 +20,7 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         let body = try JSONEncoder().encode(Body(code: invitation.code, clientId: clientId, name: name))
         let data = try await request(route: "/v1/pair", json: body)
         let response = try JSONDecoder().decode(Response.self, from: data)
-        guard response.deviceId == invitation.deviceId, !response.token.isEmpty else { throw BridgeError.message("电脑身份不一致，请重新扫码") }
+        guard response.deviceId == invitation.deviceId, !response.token.isEmpty else { throw BridgeError.message(String(localized: "The computer’s identity changed. Scan a new pairing QR code.")) }
         return PairedDevice(id: response.deviceId, name: response.name, addresses: invitation.addresses, port: invitation.port, fingerprint: invitation.fingerprint, token: response.token)
     }
 
@@ -58,10 +58,11 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
                 let response: (Data, URLResponse)
                 if let payload { response = try await session.upload(for: request, fromFile: payload.file) }
                 else { response = try await session.data(for: request) }
-                guard response.0.count <= 65536, let http = response.1 as? HTTPURLResponse else { throw BridgeError.message("电脑返回的数据无效") }
+                guard response.0.count <= 65536, let http = response.1 as? HTTPURLResponse else { throw BridgeError.message(String(localized: "The computer sent an invalid response.")) }
                 guard (200...299).contains(http.statusCode) else {
                     let result = try? JSONDecoder().decode(TransferResult.self, from: response.0)
-                    throw BridgeError.message(result?.error ?? "电脑返回错误 \(http.statusCode)")
+                    let message = receiverError(result?.error, status: http.statusCode, pairing: route == "/v1/pair")
+                    throw BridgeError.receiver(status: http.statusCode, message: message)
                 }
                 return response.0
             } catch let error as URLError {
@@ -70,9 +71,34 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
             }
         }
         if let error = lastError as? URLError, [.serverCertificateUntrusted, .serverCertificateHasBadDate, .secureConnectionFailed].contains(error.code) {
-            throw BridgeError.message("电脑证书验证失败，请重新扫码配对")
+            throw BridgeError.message(String(localized: "Couldn’t verify the computer. Scan a new pairing QR code."))
         }
-        throw BridgeError.message("连接电脑失败。请确认两端连接同一 Wi-Fi、CtrlV 正在运行，并已允许本地网络权限。")
+        throw BridgeError.message(String(localized: "Can’t reach the computer. Check that both devices are on the same Wi-Fi, CtrlV or CommandV is running, and Local Network access is allowed."))
+    }
+
+    private func receiverError(_ message: String?, status: Int, pairing: Bool) -> String {
+        // Older desktop receivers return Chinese detail without a locale or a stable error code.
+        if Bundle.main.preferredLocalizations.first == "zh-Hans", let message, !message.isEmpty { return message }
+        switch status {
+        case 403 where pairing:
+            return String(localized: "Refresh the QR code on your computer and scan it again.")
+        case 401:
+            return String(localized: "Your pairing is no longer valid. Scan a new QR code.")
+        case 413:
+            return String(localized: "The selected items are too large for the receiver.")
+        case 415:
+            return String(localized: "The computer doesn’t support this file type.")
+        case 422:
+            return String(localized: "The transfer was incomplete or couldn’t be processed. Try sending it again.")
+        case 429:
+            return String(localized: "The computer is busy. Try again shortly.")
+        case 501:
+            return String(localized: "Update CtrlV or CommandV on your computer and try again.")
+        case 503:
+            return String(localized: "Receiving is paused. Resume it on your computer and try again.")
+        default:
+            return String(localized: "The computer returned error \(status).")
+        }
     }
 
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {

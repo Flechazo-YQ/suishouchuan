@@ -22,16 +22,19 @@ struct CaptureModeTabs: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selection
     var body: some View {
-        HStack(spacing: 0) { mode("拍摄", selected: !burst, value: false); mode("连拍", selected: burst, value: true) }
+        HStack(spacing: 0) {
+            mode("Camera", selected: !burst, value: false)
+            mode("Burst", selected: burst, value: true)
+        }
             .padding(3).background(Color.white.opacity(0.06)).clipShape(Capsule())
             .disabled(locked)
     }
-    private func mode(_ title: String, selected: Bool, value: Bool) -> some View {
+    private func mode(_ title: LocalizedStringKey, selected: Bool, value: Bool) -> some View {
         Button {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { burst = value }
         } label: {
-            Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(selected ? cameraAccent : .gray)
-                .frame(width: 76, height: 42)
+            Text(title).font(.subheadline.weight(.semibold)).foregroundColor(selected ? cameraAccent : .gray)
+                .padding(.horizontal, 16).frame(minWidth: 82, minHeight: 44)
                 .background(Group { if selected { Capsule().fill(cameraAccent.opacity(0.12)).matchedGeometryEffect(id: "mode", in: selection) } })
         }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -67,7 +70,7 @@ private struct TouchSurface: UIViewRepresentable {
         view.burst = burst; view.recording = recording
         view.photo = photo; view.beginVideo = beginVideo; view.endVideo = endVideo
         view.isUserInteractionEnabled = enabled
-        view.accessibilityLabel = burst ? "连拍：拍摄一张并继续取景" : "拍摄：轻触拍照，长按录像"
+        view.accessibilityLabel = burst ? String(localized: "Burst shutter") : String(localized: "Camera shutter. Tap for a photo or hold for video.")
         view.accessibilityTraits = enabled ? .button : [.button, .notEnabled]
     }
 }
@@ -83,7 +86,7 @@ private final class ShutterTouch: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         isAccessibilityElement = true
-        accessibilityCustomActions = [UIAccessibilityCustomAction(name: "开始或停止录像", target: self, selector: #selector(accessibleVideo))]
+        accessibilityCustomActions = [UIAccessibilityCustomAction(name: String(localized: "Start or Stop Camera Recording"), target: self, selector: #selector(accessibleVideo))]
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

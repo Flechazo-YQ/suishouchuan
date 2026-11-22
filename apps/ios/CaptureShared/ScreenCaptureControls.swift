@@ -2,7 +2,7 @@ import ActivityKit
 import AppIntents
 
 private struct CaptureRoutingError: LocalizedError {
-    var errorDescription: String? { "系统未将操作交给 CommandC，请重新打开应用并开始屏幕采集。" }
+    var errorDescription: String? { String(localized: "Reopen CommandC and start screen capture to use this shortcut.") }
 }
 
 @available(iOS 17.0, *)
@@ -19,8 +19,8 @@ struct ScreenCaptureAttributes: ActivityAttributes {
 
 @available(iOS 27.0, *)
 struct CaptureScreenFrameIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "CommandC 截取一张"
-    static var description = IntentDescription("已开始屏幕采集时，1.5 秒后截取当前画面并加入待发组。")
+    static var title: LocalizedStringResource = "Capture a Screenshot with CommandC"
+    static var description = IntentDescription("After screen capture starts, save the current screen to your batch after 1.5 seconds.")
     static var openAppWhenRun = false
     static var supportedModes: IntentModes { .background }
     func perform() async throws -> some IntentResult {
@@ -35,7 +35,7 @@ struct CaptureScreenFrameIntent: LiveActivityIntent {
 
 @available(iOS 27.0, *)
 struct ToggleScreenRecordingIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "CommandC 开始或停止录屏"
+    static var title: LocalizedStringResource = "Start or Stop Screen Recording with CommandC"
     static var openAppWhenRun = false
     static var supportedModes: IntentModes { .background }
     func perform() async throws -> some IntentResult {
@@ -50,7 +50,7 @@ struct ToggleScreenRecordingIntent: LiveActivityIntent {
 
 @available(iOS 27.0, *)
 struct StopScreenCaptureIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "停止 CommandC 屏幕采集"
+    static var title: LocalizedStringResource = "End CommandC Screen Capture"
     static var openAppWhenRun = false
     static var supportedModes: IntentModes { .background }
     func perform() async throws -> some IntentResult {
@@ -67,8 +67,8 @@ struct StopScreenCaptureIntent: LiveActivityIntent {
 @available(iOS 27.0, *)
 struct ScreenCaptureShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
-        AppShortcut(intent: CaptureScreenFrameIntent(), phrases: ["用\(.applicationName)截取一张"], shortTitle: "截取一张", systemImageName: "rectangle.dashed")
-        AppShortcut(intent: ToggleScreenRecordingIntent(), phrases: ["用\(.applicationName)录屏"], shortTitle: "开始或停止录屏", systemImageName: "record.circle")
+        AppShortcut(intent: CaptureScreenFrameIntent(), phrases: ["Take a screenshot with \(.applicationName)"], shortTitle: "Capture Screenshot", systemImageName: "rectangle.dashed")
+        AppShortcut(intent: ToggleScreenRecordingIntent(), phrases: ["Record the screen with \(.applicationName)"], shortTitle: "Toggle Screen Recording", systemImageName: "record.circle")
     }
 }
 #endif

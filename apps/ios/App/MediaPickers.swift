@@ -58,7 +58,7 @@ struct CameraPicker: UIViewControllerRepresentable {
 }
 
 @MainActor func requestCamera(video: Bool) async throws {
-    guard UIImagePickerController.isSourceTypeAvailable(.camera) else { throw BridgeError.message("这台设备没有可用相机") }
-    guard await AVCaptureDevice.requestAccess(for: .video) else { throw BridgeError.message("请在系统设置中允许 CommandC 使用相机") }
-    if video, !(await AVCaptureDevice.requestAccess(for: .audio)) { throw BridgeError.message("录像需要麦克风权限，请在系统设置中开启") }
+    guard UIImagePickerController.isSourceTypeAvailable(.camera) else { throw BridgeError.message(String(localized: "This device has no available camera.")) }
+    guard await AVCaptureDevice.requestAccess(for: .video) else { throw BridgeError.message(String(localized: "Allow camera access for CommandC in Settings.")) }
+    if video, !(await AVCaptureDevice.requestAccess(for: .audio)) { throw BridgeError.message(String(localized: "Allow microphone access in Settings to record video.")) }
 }

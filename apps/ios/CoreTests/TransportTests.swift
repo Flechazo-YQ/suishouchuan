@@ -31,6 +31,6 @@ final class TransportTests: XCTestCase {
         var corrupted = Data(try Data(contentsOf: image)); corrupted.append(0)
         try corrupted.write(to: image)
         do { _ = try await PinnedClient(device: device).send(payload, requestId: UUID()); XCTFail("Corrupted payload accepted") }
-        catch { XCTAssertTrue(error.localizedDescription.contains("完整") || error.localizedDescription.contains("失败")) }
+        catch let BridgeError.receiver(status, _) { XCTAssertEqual(status, 422) }
     }
 }

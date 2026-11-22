@@ -40,7 +40,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
         await MainActor.run {
             self.authorized = granted
             if granted { self.start() }
-            else { self.error = "请在系统设置中允许 CommandC 使用相机" }
+            else { self.error = String(localized: "Allow camera access for CommandC in Settings.") }
         }
     }
     func start() {
@@ -64,17 +64,17 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
     }
     private func configure() throws {
         guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            throw BridgeError.message("这台设备没有可用的后置相机")
+            throw BridgeError.message(String(localized: "This device has no available rear camera."))
         }
         let input = try AVCaptureDeviceInput(device: camera)
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         session.sessionPreset = .high
-        guard session.canAddInput(input) else { throw BridgeError.message("无法启动相机，请稍后重试") }
+        guard session.canAddInput(input) else { throw BridgeError.message(String(localized: "Couldn’t start the camera. Try again.")) }
         session.addInput(input)
         guard session.canAddOutput(photos), session.canAddOutput(movies) else {
             session.removeInput(input)
-            throw BridgeError.message("这台设备暂不支持拍摄，请使用相册发送")
+            throw BridgeError.message(String(localized: "Use Photos to send media on this device."))
         }
         session.addOutput(photos); session.addOutput(movies)
         photos.isHighResolutionCaptureEnabled = true
@@ -99,10 +99,10 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
             if permission == .notDetermined {
                 AVCaptureDevice.requestAccess(for: .audio) { granted in
                     DispatchQueue.main.async {
-                        self.error = granted ? "麦克风已开启，请再次按住快门录像" : "录像需要麦克风权限，请在系统设置中开启"
+                        self.error = granted ? String(localized: "Microphone access is on. Press and hold the shutter again to record.") : String(localized: "Allow microphone access in Settings to record video.")
                     }
                 }
-            } else { error = "录像需要麦克风权限，请在系统设置中开启" }
+            } else { error = String(localized: "Allow microphone access in Settings to record video.") }
             return
         }
         recording = true; seconds = 0; error = ""
@@ -118,11 +118,11 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
     }
     private func addAudio() throws {
         guard audioInput == nil else { return }
-        guard let device = AVCaptureDevice.default(for: .audio) else { throw BridgeError.message("没有可用的麦克风") }
+        guard let device = AVCaptureDevice.default(for: .audio) else { throw BridgeError.message(String(localized: "No microphone is available.")) }
         let input = try AVCaptureDeviceInput(device: device)
         session.beginConfiguration()
         defer { session.commitConfiguration() }
-        guard session.canAddInput(input) else { throw BridgeError.message("麦克风正在被其他应用使用") }
+        guard session.canAddInput(input) else { throw BridgeError.message(String(localized: "Another app is using the microphone.")) }
         session.addInput(input); audioInput = input
     }
     private func removeAudio() {
@@ -141,7 +141,7 @@ final class CameraCapture: NSObject, ObservableObject, AVCapturePhotoCaptureDele
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         do {
             if let error { throw error }
-            guard let data = photo.fileDataRepresentation() else { throw BridgeError.message("未取得照片，请重新拍摄") }
+            guard let data = photo.fileDataRepresentation() else { throw BridgeError.message(String(localized: "Couldn’t capture the photo. Try again.")) }
             let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
             try data.write(to: file, options: .atomic)
             deliver(file, video: false)

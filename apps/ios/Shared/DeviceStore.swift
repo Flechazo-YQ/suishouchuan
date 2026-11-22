@@ -24,7 +24,7 @@ struct DeviceStore {
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data else { throw BridgeError.message("无法读取已配对电脑，请解锁手机后重试") }
+        guard status == errSecSuccess, let data = result as? Data else { throw BridgeError.message(String(localized: "Couldn’t read paired computers. Unlock your iPhone and try again.")) }
         return data
     }
     func save(_ device: PairedDevice) throws {
@@ -53,6 +53,6 @@ struct DeviceStore {
             query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             status = SecItemAdd(query as CFDictionary, nil)
         }
-        guard status == errSecSuccess else { throw BridgeError.message("保存配对失败（\(status)），请重试") }
+        guard status == errSecSuccess else { throw BridgeError.message(String(localized: "Couldn’t save the pairing (\(Int(status))). Try again.")) }
     }
 }

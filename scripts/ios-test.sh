@@ -36,7 +36,7 @@ xcodebuild build-for-testing -project apps/ios/CommandV.xcodeproj -scheme Comman
   AppIdentifierPrefix=65635WN76L. CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER:-1}" 2>&1 | tee build/ios-build.log
 # Simulator entitlements are linked into Mach-O, separate from the ad-hoc signature.
 python3 - <<'PY'
-import os, plistlib, pathlib
+import os, plistlib, pathlib, subprocess
 base=pathlib.Path('build/DerivedData/Build')
 for target, product in [('CommandV','CommandV.app'),('CommandVShare','CommandVShare.appex')]:
     root=base/'Products/Debug-iphonesimulator'/product
@@ -47,6 +47,18 @@ for target, product in [('CommandV','CommandV.app'),('CommandVShare','CommandVSh
     entitlements=plistlib.loads(raw)
     assert info['CommandVKeychainGroup'] in entitlements.get('keychain-access-groups',[]), entitlements
     assert raw in (root/info['CFBundleExecutable']).read_bytes(), 'Simulator entitlement section missing'
+app=base/'Products/Debug-iphonesimulator/CommandV.app'
+for bundle in [app, app/'PlugIns/CommandVShare.appex', app/'PlugIns/CommandVCapture.appex']:
+    info=plistlib.loads((bundle/'Info.plist').read_bytes())
+    assert info['CFBundleDevelopmentRegion']=='en'
+    assert {'en','zh-Hans'} <= set(info['CFBundleLocalizations'])
+    catalog=bundle/'zh-Hans.lproj/Localizable.strings'
+    strings=plistlib.loads(subprocess.check_output(['plutil','-convert','xml1','-o','-',str(catalog)]))
+    assert strings['Press and hold the Dynamic Island']=='长按屏幕顶部的灵动岛'
+for bundle in [app, app/'PlugIns/CommandVShare.appex']:
+    permissions=bundle/'zh-Hans.lproj/InfoPlist.strings'
+    strings=plistlib.loads(subprocess.check_output(['plutil','-convert','xml1','-o','-',str(permissions)]))
+    assert 'NSLocalNetworkUsageDescription' in strings
 PY
 xcodebuild test-without-building -project apps/ios/CommandV.xcodeproj -scheme CommandV \
   -destination "platform=iOS Simulator,id=$DEVICE_ID" -parallel-testing-enabled NO \

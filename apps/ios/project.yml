@@ -1,6 +1,7 @@
 name: CommandV
 options:
   bundleIdPrefix: com.flechazoyq
+  developmentLanguage: en
   deploymentTarget:
     iOS: '15.1'
 settings:
@@ -22,6 +23,7 @@ targets:
     sources:
       - path: App
       - path: CaptureShared
+      - path: Localization
       - path: Shared
         excludes: [CommandV.entitlements]
     settings:
@@ -38,18 +40,18 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleDisplayName: CommandC
-        CFBundleDevelopmentRegion: zh_CN
+        CFBundleDevelopmentRegion: en
         CFBundleLocalizations: [zh-Hans, en]
         CFBundleURLTypes:
           - CFBundleURLSchemes: [imagebridge]
             CFBundleURLName: com.flechazoyq.commandv.pair
         CommandVKeychainGroup: $(AppIdentifierPrefix)com.flechazoyq.commandv
-        NSCameraUsageDescription: 拍摄要发送到电脑的照片、视频，以及扫描电脑配对二维码。
-        NSMicrophoneUsageDescription: 为发送到电脑的视频录制声音。
-        NSScreenCaptureUsageDescription: 在你允许后截取屏幕图片或录制短视频，预览确认后发送到已配对电脑。
+        NSCameraUsageDescription: Take photos and videos to send to your computer, and scan pairing QR codes.
+        NSMicrophoneUsageDescription: Record sound for videos you send to your computer.
+        NSScreenCaptureUsageDescription: Capture screenshots or short recordings after you allow screen access. Review them before sending to a paired computer.
         NSSupportsLiveActivities: true
         UIBackgroundModes: [screen-capture]
-        NSLocalNetworkUsageDescription: 通过同一 Wi-Fi 查找已配对的电脑并直接发送照片和视频。
+        NSLocalNetworkUsageDescription: Find your paired computer on the same Wi-Fi and send photos and videos directly.
         NSBonjourServices: [_imagebridge._tcp]
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -66,6 +68,7 @@ targets:
     sources:
       - path: CaptureWidget
       - path: CaptureShared
+      - path: Localization
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.flechazoyq.commandv.capture
@@ -79,6 +82,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleDisplayName: CommandC
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [zh-Hans, en]
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
   CommandVShare:
@@ -86,6 +91,7 @@ targets:
     platform: iOS
     sources:
       - path: Share
+      - path: Localization
       - path: Shared
         excludes: [CommandV.entitlements]
     settings:
@@ -102,8 +108,10 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleDisplayName: CommandC
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [zh-Hans, en]
         CommandVKeychainGroup: $(AppIdentifierPrefix)com.flechazoyq.commandv
-        NSLocalNetworkUsageDescription: 将你选中的素材通过局域网发送到已配对电脑。
+        NSLocalNetworkUsageDescription: Send the items you select to your paired computer over the local network.
         NSBonjourServices: [_imagebridge._tcp]
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
