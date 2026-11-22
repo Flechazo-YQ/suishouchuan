@@ -80,6 +80,7 @@ struct ContentView: View {
             else { queuePairing(url.absoluteString) }
         }
         .task { await sponsorship.observeTransactions() }
+        .task { await sponsorship.observeStorefront() }
         .onAppear {
             model.switchCapture(burst: false)
             camera.captured = { file, video in importCapture(file, video: video) }

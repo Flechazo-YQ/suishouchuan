@@ -4,37 +4,55 @@ import SwiftUI
 @MainActor
 final class SponsorshipStore: ObservableObject {
     private let productIDs: [String]
+    private let storefrontCountry: () async -> String?
+    @Published private(set) var enabled = false
 
     @Published private(set) var products: [Product] = []
     @Published private(set) var loading = false
     @Published private(set) var purchasing = false
     @Published private(set) var notice: String?
 
-    init(productIDs: [String]? = nil) {
+    init(productIDs: [String]? = nil, storefrontCountry: @escaping () async -> String? = { await Storefront.current?.countryCode }) {
         let configured = Bundle.main.object(forInfoDictionaryKey: "CommandCSponsorshipProductIDs") as? String ?? ""
         self.productIDs = productIDs ?? configured.split { $0.isWhitespace || $0 == "," }.map(String.init)
+        self.storefrontCountry = storefrontCountry
     }
 
-    var enabled: Bool { !productIDs.isEmpty }
+    func refreshStorefront() async {
+        let country = await storefrontCountry()
+        enabled = !productIDs.isEmpty && country == "CHN"
+        if !enabled { products = []; notice = nil }
+    }
+
+    func observeStorefront() async {
+        guard !productIDs.isEmpty else { return }
+        await refreshStorefront()
+        for await _ in Storefront.updates { await refreshStorefront() }
+    }
 
     func load() async {
+        await refreshStorefront()
         guard enabled, !loading else { return }
         loading = true
         notice = nil
         defer { loading = false }
         do {
-            products = try await Product.products(for: productIDs)
+            let available = try await Product.products(for: productIDs)
                 .filter { $0.type == .consumable }
                 .sorted { $0.price < $1.price }
+            await refreshStorefront()
+            guard enabled else { return }
+            products = available
             if products.isEmpty { notice = "当前 App Store 地区暂无可用的赞助选项。" }
         } catch {
-            guard !Task.isCancelled else { return }
+            guard enabled, !Task.isCancelled else { return }
             notice = "暂时无法加载赞助选项，请稍后重试。"
         }
     }
 
     func purchase(_ product: Product) async {
-        guard !purchasing, products.contains(where: { $0.id == product.id }) else { return }
+        await refreshStorefront()
+        guard enabled, !purchasing, products.contains(where: { $0.id == product.id }) else { return }
         guard AppStore.canMakePayments else {
             notice = "这台设备的 App Store 设置限制了付款。"
             return
@@ -55,7 +73,7 @@ final class SponsorshipStore: ObservableObject {
     }
 
     func observeTransactions() async {
-        guard enabled else { return }
+        guard !productIDs.isEmpty else { return }
         for await result in StoreKit.Transaction.updates {
             await finish(result)
         }
@@ -79,6 +97,14 @@ struct SponsorshipView: View {
     @ObservedObject var store: SponsorshipStore
 
     var body: some View {
+        Group {
+            if store.enabled { sponsorshipOptions }
+        }
+        .navigationTitle(store.enabled ? "支持开发者" : "")
+        .task { await store.load() }
+    }
+
+    private var sponsorshipOptions: some View {
         List {
             Section {
                 Text("欢迎自愿赞助，帮助维护 CommandC。是否赞助不影响应用功能。")
@@ -104,7 +130,5 @@ struct SponsorshipView: View {
                 Button("重新加载") { Task { await store.load() } }
             }
         }
-        .navigationTitle("支持开发者")
-        .task { await store.load() }
     }
 }
