@@ -60,7 +60,7 @@
 "End CommandC Screen Capture" = "停止 CommandC 屏幕采集";
 "End Screen Capture" = "停止屏幕采集";
 "Finish your recording or clear the current batch. A batch can hold up to 10 screenshots." = "请先处理当前素材；每组最多 10 张，录像时不能截图。";
-"If your iPhone has an Action button, go to Settings → Action Button → Shortcut. Tap Choose a Shortcut and select Capture Screenshot under CommandC. Start screen capture in CommandC, switch apps, then press and hold the Action button. A screenshot is saved after about 1.5 seconds." = "在配有操作按钮的 iPhone 上，打开「设置」→「操作按钮」，滑到「快捷指令」，点下方的选项，在 CommandC 下选「截取一张」。设置一次后，每次先在 CommandC 开始采集，再去目标 App 长按机身操作按钮，等约 1.5 秒即可截一张。";
+"On an iPhone with an Action button, go to Settings → Action Button → Shortcut. Tap Choose a Shortcut and select Capture Screenshot under CommandC." = "在配有操作按钮的 iPhone 上，打开「设置」→「操作按钮」，滑到「快捷指令」，点下方的选项，在 CommandC 下选「截取一张」。";
 "Images can be up to 32 MB each. Videos can be up to 100 MB." = "单图上限 32 MB，视频上限 100 MB";
 "Invalid pairing information. Choose a computer on the same local network." = "配对信息无效，仅支持同一局域网内的电脑";
 "iPhone Screen Recordings" = "系统录屏";
@@ -79,6 +79,7 @@
 "Open the app you want to capture. Press and hold the CommandC activity at the top of the screen until the controls expand." = "切到要截图的 App，长按灵动岛里的 CommandC 活动，直到控制面板展开。";
 "Or paste the pairing link" = "或粘贴电脑端配对链接";
 "Pair" = "确认配对";
+"Pair a computer to send" = "配对电脑后即可发送";
 "Pair Computer" = "配对电脑";
 "Paired Computers" = "已配对电脑";
 "Paired with “%@”" = "已连接「%@」";
@@ -140,6 +141,7 @@
 "Start or Stop Camera Recording" = "开始或停止录像";
 "Start or Stop Screen Recording with CommandC" = "CommandC 开始或停止录屏";
 "Start Screen Capture" = "开始屏幕采集";
+"Start screen capture in CommandC and switch to the app you want to capture. Press and hold the Action button, then wait about 1.5 seconds for one screenshot." = "每次先在 CommandC 开始采集，再去目标 App 长按机身操作按钮，等约 1.5 秒即可截一张。";
 "Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Stop Recording. Recordings stop after 30 seconds. Tap Review to return to CommandC." = "开始采集后，切到要录制的 App。长按灵动岛，点「录屏」后收起面板。结束时再长按灵动岛，点「停止录屏」。每段最长 30 秒。回 CommandC 的「截屏 / 录屏」预览并发送。";
 "Start screen capture in CommandC first." = "请先在 CommandC 开始屏幕采集。";
 "Stop" = "停止";
@@ -148,7 +150,7 @@
 "Swipe up on the Dynamic Island to collapse it…" = "请收起控制面板，正在准备截图…";
 "Switch to the app you want to capture before using the Dynamic Island or Action button." = "请先切到要截取的 App，再使用灵动岛或操作按钮。";
 "Take a screenshot on your iPhone, then tap Share → CommandC → Confirm Send. To send several at once, select them below." = "用 iPhone 系统截屏后，点分享 → CommandC → 确认发送。连续截好几张，也可以在下方选取后一起发送。";
-"Take screenshots with the Action button" = "用操作按钮截图";
+"Use the Action Button" = "用操作按钮截图";
 "Take screenshots with the Dynamic Island" = "用灵动岛逐张截图";
 "Tap a thumbnail to review, then tap Send." = "点缩略图查看 · 右上角确认并发送";
 "Tap Capture, then swipe up to collapse" = "点「截取」，向上轻扫收起";

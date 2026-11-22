@@ -89,9 +89,13 @@ struct NativeScreenTools: View {
             guideStep(3, "Tap Capture, then swipe up to collapse", "Wait about 1.5 seconds for the count to increase. Repeat to collect up to 10 screenshots.")
             guideStep(4, "Review and send the batch", "Press and hold the Dynamic Island and tap Review, or reopen Screen Capture in CommandC. Tap Review and Send, then tap Send at the top right.")
 
-            DisclosureGroup("Take screenshots with the Action button") {
-                Text("If your iPhone has an Action button, go to Settings → Action Button → Shortcut. Tap Choose a Shortcut and select Capture Screenshot under CommandC. Start screen capture in CommandC, switch apps, then press and hold the Action button. A screenshot is saved after about 1.5 seconds.")
-                    .font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("On an iPhone with an Action button, go to Settings → Action Button → Shortcut. Tap Choose a Shortcut and select Capture Screenshot under CommandC.")
+                    Text("Start screen capture in CommandC and switch to the app you want to capture. Press and hold the Action button, then wait about 1.5 seconds for one screenshot.")
+                }.font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
+            } label: {
+                Text("Use the Action Button").multilineTextAlignment(.leading)
             }
             DisclosureGroup("Record with the Dynamic Island") {
                 Text("Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Stop Recording. Recordings stop after 30 seconds. Tap Review to return to CommandC.")

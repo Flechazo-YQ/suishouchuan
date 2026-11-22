@@ -131,6 +131,7 @@ final class LaunchTests: XCTestCase {
         review.tap()
         XCTAssertTrue(app.buttons["Send"].isHittable)
         XCTAssertTrue(app.staticTexts["Preview 1 / 1"].exists)
+        XCTAssertTrue(app.staticTexts["Pair a computer to send"].exists)
         attach(app, "CommandC English preview")
         app.buttons["Back to Camera"].tap()
 
@@ -150,13 +151,14 @@ final class LaunchTests: XCTestCase {
             let capture = app.descendants(matching: .any)["screenCaptureGuideStep3"].firstMatch
             XCTAssertTrue(capture.label.contains("swipe up to collapse"))
             attach(app, "CommandC English Dynamic Island guide")
-            let actionButton = app.buttons["Take screenshots with the Action button"]
+            let actionButton = app.buttons["Use the Action Button"]
             for _ in 0..<4 where !actionButton.isHittable { app.swipeUp() }
             XCTAssertTrue(actionButton.isHittable)
             actionButton.tap()
-            let details = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "press and hold the Action button")).firstMatch
+            let details = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Press and hold the Action button")).firstMatch
             XCTAssertTrue(details.waitForExistence(timeout: 3))
-            for _ in 0..<2 where !details.isHittable { app.swipeUp() }
+            app.swipeUp()
+            XCTAssertTrue(details.isHittable)
             attach(app, "CommandC English Action button guide")
         } else {
             XCTAssertTrue(app.buttons["Choose Screenshots"].isHittable)

@@ -227,11 +227,16 @@ struct ContentView: View {
     }
 
     private var reviewFooter: some View {
-        let destination = model.target?.name ?? String(localized: "No computer paired")
-        return VStack(spacing: 12) {
+        VStack(spacing: 12) {
             Text(group ? "Tap a thumbnail to review, then tap Send." : "Tap the checkmark to send or the × to retake.").font(.system(size: 12)).foregroundColor(.gray)
             Text(group ? "Preview \(min(reviewIndex + 1, model.items.count)) / \(model.items.count)" : model.items.first?.mime == "video/mp4" ? "Video" : "Photo").font(.system(size: 18))
-            Text("To \(destination)").font(.system(size: 12)).foregroundColor(.gray)
+            Group {
+                if let destination = model.target?.name {
+                    Text("To \(destination)")
+                } else {
+                    Text("Pair a computer to send")
+                }
+            }.font(.footnote).foregroundColor(.gray)
             Text("CommandC · Local network only").font(.system(size: 10)).foregroundColor(.gray)
         }.multilineTextAlignment(.center).padding(.horizontal, 20).padding(.vertical, 20).frame(maxWidth: .infinity)
     }
