@@ -2,6 +2,67 @@ import SwiftUI
 
 let cameraAccent = Color(red: 217 / 255, green: 242 / 255, blue: 120 / 255)
 
+struct BatchLimitControl: View {
+    @Binding var limit: Int
+    let count: Int
+    @State private var choosing = false
+
+    private let ticks = [1, 5, 10, 20, 50, CaptureBatch.maximum]
+
+    var body: some View {
+        Button {
+            choosing = true
+        } label: {
+            Label("\(count)/\(CaptureBatch.limit(limit))", systemImage: "slider.horizontal.3")
+                .font(.footnote.monospacedDigit().weight(.semibold))
+                .padding(.horizontal, 12).frame(minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityLabel("Batch limit")
+        .accessibilityValue(Text("\(count)/\(CaptureBatch.limit(limit))"))
+        .sheet(isPresented: $choosing) {
+            NavigationView {
+                VStack(spacing: 12) {
+                    Text(CaptureBatch.limit(limit).formatted())
+                        .font(.system(size: 44, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(cameraAccent)
+                        .accessibilityHidden(true)
+                    Slider(value: sliderPosition, in: 0...Double(ticks.count - 1)) {
+                        Text("Batch limit")
+                    }.accessibilityValue(Text(CaptureBatch.limit(limit).formatted()))
+                    HStack(spacing: 0) {
+                        ForEach(ticks, id: \.self) { tick in
+                            Button {
+                                limit = tick
+                            } label: {
+                                Text(tick.formatted()).font(.caption.monospacedDigit())
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                    Text("Up to 100 MB per batch.").font(.footnote).foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(24).navigationTitle("Batch limit").navigationBarTitleDisplayMode(.inline)
+                .toolbar { Button("Done") { choosing = false } }
+            }.navigationViewStyle(.stack).preferredColorScheme(.dark).tint(cameraAccent)
+        }
+    }
+
+    private var sliderPosition: Binding<Double> {
+        Binding {
+            let value = CaptureBatch.limit(limit)
+            guard let end = ticks.firstIndex(where: { $0 > value }) else { return Double(ticks.count - 1) }
+            return Double(end - 1) + Double(value - ticks[end - 1]) / Double(ticks[end] - ticks[end - 1])
+        } set: { position in
+            let start = min(Int(position), ticks.count - 2)
+            let value = Double(ticks[start]) + (position - Double(start)) * Double(ticks[start + 1] - ticks[start])
+            limit = CaptureBatch.limit(Int(value.rounded()))
+        }
+    }
+}
+
 struct CameraGrid: View {
     var body: some View {
         GeometryReader { geometry in

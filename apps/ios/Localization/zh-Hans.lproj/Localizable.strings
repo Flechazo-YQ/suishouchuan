@@ -1,5 +1,5 @@
 "A batch can contain images only, up to 100 MB in total." = "图集仅支持图片，整组上限 100 MB";
-"A batch can hold up to 10 images." = "每组最多 10 张图片";
+"Batch limit" = "每组张数";
 "After screen capture starts, save the current screen to your batch after 1.5 seconds." = "已开始屏幕采集时，1.5 秒后截取当前画面并加入待发组。";
 "Allow access to take photos, record video, and scan pairing codes." = "允许使用相机后即可拍摄";
 "Allow Camera" = "开启相机";
@@ -23,8 +23,10 @@
 "Capture is ready. Enable Live Activities or use the CommandC shortcut with the Action button." = "采集已开始；请开启实时活动，或使用操作按钮的 CommandC 快捷指令。";
 "Capture is ready. Switch apps, then press and hold the Dynamic Island or Action button." = "已开始采集。切到目标 App，再用灵动岛或操作按钮截取。";
 "Capture Screenshot" = "截取一张";
-"Capturing · %lld/10" = "采集中 · %lld/10";
-"Choose 1–10 images." = "每次请选择 1–10 张图片";
+"Capturing · %lld/%lld" = "采集中 · %lld/%lld";
+"Choose 1–99 images." = "每次请选择 1–99 张图片";
+"Capture from the Dynamic Island" = "从灵动岛截取";
+"Close the controls within three seconds. When the count increases, the screenshot is ready. Press and hold the Dynamic Island again for the next shot." = "请在三秒内收起面板。计数增加后，表示这张截图已保存。再次长按灵动岛可截取下一张。";
 "Choose a photo or video." = "请选择图片或视频";
 "Choose a Recording" = "选择录屏视频";
 "Choose a still image up to 64 megapixels." = "仅支持 6400 万像素以内的静态图片";
@@ -59,7 +61,7 @@
 "End Capture" = "停止采集";
 "End CommandC Screen Capture" = "停止 CommandC 屏幕采集";
 "End Screen Capture" = "停止屏幕采集";
-"Finish your recording or clear the current batch. A batch can hold up to 10 screenshots." = "请先处理当前素材；每组最多 10 张，录像时不能截图。";
+"Finish recording or review the current batch before taking another screenshot." = "请先结束录屏或处理当前截图组，再截下一张。";
 "On an iPhone with an Action button, go to Settings → Action Button → Shortcut. Tap Choose a Shortcut and select Capture Screenshot under CommandC." = "在配有操作按钮的 iPhone 上，打开「设置」→「操作按钮」，滑到「快捷指令」，点下方的选项，在 CommandC 下选「截取一张」。";
 "Images can be up to 32 MB each. Videos can be up to 100 MB." = "单图上限 32 MB，视频上限 100 MB";
 "Invalid pairing information. Choose a computer on the same local network." = "配对信息无效，仅支持同一局域网内的电脑";
@@ -135,7 +137,7 @@
 "Send this photo to “%@”?" = "将这张照片发送到「%@」？";
 "Send this video to “%@”?" = "将这段视频发送到「%@」？";
 "Send to Computer" = "发送到电脑";
-"Send your current batch first. Each batch holds up to 10 images and 100 MB." = "每组最多 10 张、100 MB，请先发送已有素材";
+"Send your current batch first. Each batch holds up to 99 images and 100 MB." = "每组最多 99 张、100 MB，请先发送已有素材。";
 "Sending to “%@”…" = "正在发送到「%@」…";
 "Share your entire screen" = "开始采集并授权";
 "Start or Stop Camera Recording" = "开始或停止录像";
@@ -155,7 +157,7 @@
 "Tap a thumbnail to review, then tap Send." = "点缩略图查看 · 右上角确认并发送";
 "Tap Capture, then swipe up to collapse" = "点「截取」，向上轻扫收起";
 "Tap for a photo. Hold for video." = "轻触拍照，按住录像";
-"Tap for each photo. Up to 10." = "连续点按拍照 · 最多 10 张";
+"This batch can hold up to %lld images." = "每组最多 %lld 张图片。";
 "Tap Send in the preview to transfer your captures. Your camera batch stays in CommandC." = "只有在预览页确认后才发送；原来的相机连拍组会保留。";
 "Tap Start Screen Capture. In the system prompt, choose to share your entire screen and confirm." = "点上方的「开始屏幕采集」，在系统面板允许共享整个屏幕。";
 "Tap the checkmark to send or the × to retake." = "右上角确认上传 · 左上角重新拍摄";
@@ -191,7 +193,8 @@
 "Video conversion failed." = "视频转换失败";
 "Video ready" = "待发视频";
 "View item %lld" = "查看第 %lld 张";
-"Wait about 1.5 seconds for the count to increase. Repeat to collect up to 10 screenshots." = "约 1.5 秒后保存一张。灵动岛计数跳动表示已保存，再截下一张，最多 10 张。";
+"Up to 100 MB per batch." = "每组最大 100 MB。";
+"Update CtrlV or CommandV to send more than 10 images together. Your batch is still here." = "请先更新电脑上的 CtrlV 或 CommandV，再发送超过 10 张的图集。当前素材已保留。";
 "Wait for the capture to finish." = "请等待采集完成";
 "Waiting for screen access…" = "等待系统授权…";
 "Working…" = "正在处理…";

@@ -4,6 +4,7 @@ import AVKit
 @available(iOS 27.0, *)
 struct NativeScreenTools: View {
     @ObservedObject private var capture = ScreenCaptureSession.shared
+    @AppStorage("captureBatchLimit") private var captureBatchLimit = CaptureBatch.defaultLimit
     @State private var importing = false
     @State private var discard = false
     @State private var selected: URL?
@@ -21,11 +22,13 @@ struct NativeScreenTools: View {
                     VStack(alignment: .leading, spacing: 4) { activeStatus; stopButton }
                 }
             } else {
-                Button { capture.presentPicker() } label: {
+                Button { capture.presentPicker(limit: captureBatchLimit) } label: {
                     Text("Start Screen Capture")
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }.buttonStyle(.borderedProminent).disabled(capture.finishing)
+                BatchLimitControl(limit: $captureBatchLimit, count: capture.files.count)
+                    .disabled(capture.finishing || capture.isVideo)
             }
             if !capture.message.isEmpty { Text(capture.message).font(.footnote).foregroundColor(.secondary).accessibilityIdentifier("screenCaptureStatus") }
             if capture.pendingShot || capture.finishing { ProgressView(capture.pendingShot ? "Swipe up on the Dynamic Island to collapse it…" : "Saving recording…") }
@@ -33,7 +36,7 @@ struct NativeScreenTools: View {
                 Divider()
                 Text(capture.isVideo ? "Recording Ready" : "Screenshots (\(capture.files.count))").font(.headline)
                 ScrollView(.horizontal) {
-                    HStack(spacing: 12) {
+                    LazyHStack(spacing: 12) {
                         ForEach(capture.files, id: \.self) { file in
                             VStack(spacing: 4) {
                                 Button { selected = file } label: {
@@ -71,7 +74,7 @@ struct NativeScreenTools: View {
     }
 
     private var activeStatus: some View {
-        Label(capture.recording ? "Recording · \(capture.seconds) s" : "Capturing · \(capture.files.count)/10", systemImage: "circle.fill")
+        Label(capture.recording ? "Recording · \(capture.seconds) s" : "Capturing · \(capture.files.count)/\(capture.batchLimit)", systemImage: "circle.fill")
             .foregroundColor(capture.recording ? .red : .green)
     }
 
@@ -86,7 +89,7 @@ struct NativeScreenTools: View {
                 .accessibilityAddTraits(.isHeader)
             guideStep(1, "Share your entire screen", "Tap Start Screen Capture. In the system prompt, choose to share your entire screen and confirm.")
             guideStep(2, "Press and hold the Dynamic Island", "Open the app you want to capture. Press and hold the CommandC activity at the top of the screen until the controls expand.")
-            guideStep(3, "Tap Capture, then swipe up to collapse", "Wait about 1.5 seconds for the count to increase. Repeat to collect up to 10 screenshots.")
+            guideStep(3, "Tap Capture, then swipe up to collapse", "Close the controls within three seconds. When the count increases, the screenshot is ready. Press and hold the Dynamic Island again for the next shot.")
             guideStep(4, "Review and send the batch", "Press and hold the Dynamic Island and tap Review, or reopen Screen Capture in CommandC. Tap Review and Send, then tap Send at the top right.")
 
             DisclosureGroup {

@@ -15,6 +15,7 @@ struct ScreenCaptureAttributes: ActivityAttributes {
         var message: String
         var shotFailed: Bool?
         var confirmingStop: Bool?
+        var batchLimit: Int?
     }
 }
 
@@ -27,6 +28,23 @@ struct CaptureScreenFrameIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
         try await ScreenCaptureSession.shared.requestFrame()
+        #else
+        throw CaptureRoutingError()
+        #endif
+        return .result()
+    }
+}
+
+@available(iOS 27.0, *)
+struct CaptureIslandFrameIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Capture from the Dynamic Island"
+    static var isDiscoverable = false
+    static var openAppWhenRun = false
+    static var supportedModes: IntentModes { .background }
+
+    func perform() async throws -> some IntentResult {
+        #if COMMANDV_APP
+        try await ScreenCaptureSession.shared.requestFrame(after: .seconds(3))
         #else
         throw CaptureRoutingError()
         #endif

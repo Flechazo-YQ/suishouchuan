@@ -124,6 +124,15 @@ final class LaunchTests: XCTestCase {
         attach(app, "CommandC English camera")
 
         app.buttons["Burst"].tap()
+        let batchLimit = app.buttons["Batch limit"]
+        XCTAssertTrue(batchLimit.isHittable)
+        batchLimit.tap()
+        let maxLimit = app.buttons["99"]
+        XCTAssertTrue(maxLimit.waitForExistence(timeout: 5))
+        maxLimit.tap()
+        attach(app, "CommandC English batch limit")
+        app.buttons["Done"].tap()
+        XCTAssertEqual(batchLimit.value as? String, "0/99")
         let shutter = app.buttons["Burst shutter"]
         XCTAssertTrue(shutter.isHittable)
         XCTAssertEqual(shutter.frame.midX, app.frame.midX, accuracy: 1)

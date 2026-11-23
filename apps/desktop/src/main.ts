@@ -10,6 +10,7 @@ import {Store} from './store';
 import {Receiver, addresses, isPrivate} from './receiver';
 import type {DesktopState, Settings, Transfer} from './types';
 import {copyMacFiles, copyMacImage} from './macPlatform';
+import {MAX_BATCH_IMAGES} from './batch';
 
 const isMac = process.platform === 'darwin';
 const appName = isMac ? 'CommandV' : 'CtrlV';
@@ -53,7 +54,7 @@ async function copyImage(filename: string) {
   }
 }
 async function copyFiles(filenames: string[]) {
-  if (!filenames.length || filenames.length > 10) throw new Error('图集数量无效');
+  if (!filenames.length || filenames.length > MAX_BATCH_IMAGES) throw new Error('图集数量无效');
   if (isMac) return copyMacFiles(filenames);
   const {clipboardSequence, verifyClipboardFiles} = await import('./windowsClipboard');
   for (const file of filenames) await fs.promises.access(file);

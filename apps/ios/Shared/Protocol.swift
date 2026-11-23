@@ -68,6 +68,13 @@ struct TransferResult: Decodable {
     let error: String?
 }
 
+enum CaptureBatch {
+    static let defaultLimit = 10
+    static let maximum = 99
+
+    static func limit(_ value: Int) -> Int { min(max(1, value), maximum) }
+}
+
 struct MediaItem: Identifiable {
     let id: UUID
     let url: URL
@@ -82,8 +89,9 @@ struct UploadPayload {
     let mime: String
     let digest: String
     let temporary: Bool
+    let imageCount: Int
     static func prepare(_ items: [MediaItem], directory: URL, asBatch: Bool = false) throws -> UploadPayload {
-        guard !items.isEmpty, items.count <= 10 else { throw BridgeError.message(String(localized: "Choose 1–10 images.")) }
+        guard !items.isEmpty, items.count <= CaptureBatch.maximum else { throw BridgeError.message(String(localized: "Choose 1–99 images.")) }
         for item in items {
             let limit = item.mime == "video/mp4" ? 100_000_000 : 32 * 1024 * 1024
             guard item.bytes > 0, item.bytes <= limit else { throw BridgeError.message(String(localized: "Images can be up to 32 MB each. Videos can be up to 100 MB.")) }
@@ -91,7 +99,7 @@ struct UploadPayload {
         if items.count == 1 && (!asBatch || items[0].mime == "video/mp4") {
             let item = items[0]
             guard ["image/jpeg", "image/png", "video/mp4"].contains(item.mime) else { throw BridgeError.message(String(localized: "This file type isn’t supported.")) }
-            return UploadPayload(file: item.url, route: item.mime == "video/mp4" ? "/v1/videos" : "/v1/images", mime: item.mime, digest: try digestFile(item.url), temporary: false)
+            return UploadPayload(file: item.url, route: item.mime == "video/mp4" ? "/v1/videos" : "/v1/images", mime: item.mime, digest: try digestFile(item.url), temporary: false, imageCount: 0)
         }
         guard items.allSatisfy({ ["image/jpeg", "image/png"].contains($0.mime) }), items.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else {
             throw BridgeError.message(String(localized: "A batch can contain images only, up to 100 MB in total."))
@@ -112,7 +120,7 @@ struct UploadPayload {
             try output.write(contentsOf: header)
             for item in items { try copyFile(item.url, to: output) }
         } catch { try? FileManager.default.removeItem(at: file); throw error }
-        return UploadPayload(file: file, route: "/v1/batches", mime: "application/x-imagebridge-batch", digest: digestData(header), temporary: true)
+        return UploadPayload(file: file, route: "/v1/batches", mime: "application/x-imagebridge-batch", digest: digestData(header), temporary: true, imageCount: items.count)
     }
 }
 

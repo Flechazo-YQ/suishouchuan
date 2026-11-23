@@ -44,10 +44,20 @@ test('图集整体校验、一次提交、容量与重试', async t => {
       assert.equal((await send(id, payload)).body.status, 'copied'); assert.equal(commits.length, 1);
       assert.equal((await send(id, bundle([png]))).status, 409);
     });
-    await t.test('坏图、11 张、无授权和传输截断均不能复制半组', async () => {
+    await t.test('99 张兼容原图集协议并在一次写入中保留顺序', async () => {
+      const id = randomUUID();
+      const before = commits.length;
+      const result = await send(id, bundle(Array<Buffer>(99).fill(png)));
+      assert.equal(result.body.status, 'copied');
+      assert.equal(result.body.imageCount, 99);
+      assert.equal(commits.length, before + 1);
+      assert.deepEqual(commits[before].map(file => path.basename(file)),
+        Array.from({length: 99}, (_, i) => `${id}-${String(i + 1).padStart(2, '0')}.png`));
+    });
+    await t.test('坏图、100 张、无授权和传输截断均不能复制半组', async () => {
       const before = commits.length;
       assert.equal((await send(randomUUID(), bundle(undefined, true))).body.status, 'failed');
-      assert.equal((await send(randomUUID(), bundle(Array(11).fill(png) as Buffer[]))).body.status, 'failed');
+      assert.equal((await send(randomUUID(), bundle(Array<Buffer>(100).fill(png)))).body.status, 'failed');
       assert.equal((await send(randomUUID(), bundle(), 'wrong')).status, 401);
       const truncated = bundle(); truncated.body = truncated.body.subarray(0, truncated.body.length - 1);
       assert.equal((await send(randomUUID(), truncated)).body.status, 'failed');

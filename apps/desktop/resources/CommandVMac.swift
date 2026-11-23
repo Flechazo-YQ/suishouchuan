@@ -44,7 +44,7 @@ enum CommandVMac {
     }
 
     @MainActor private static func copyFiles(_ files: [URL]) throws {
-        guard (1...10).contains(files.count) else { throw HelperError.invalidArguments }
+        guard (1...99).contains(files.count) else { throw HelperError.invalidArguments }
         for file in files where !FileManager.default.isReadableFile(atPath: file.path) {
             throw CocoaError(.fileReadNoPermission)
         }

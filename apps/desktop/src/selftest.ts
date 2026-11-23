@@ -62,15 +62,19 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     await copy(videoPath);
     const filesAfterVideo = await readFiles();
     const fileClipboard = filesAfterVideo.includes(fs.realpathSync(videoPath)) || filesAfterVideo.includes(videoPath);
-    const batchManifest = Buffer.from(JSON.stringify({images: Array.from({length: 10}, () => ({bytes: image.length, mime: 'image/png', sha256: sha256(image)}))}));
+    const capabilities = await request('/v1/capabilities', undefined, token);
+    const batchImage = await sharp(image).resize(40).png().toBuffer();
+    const batchImages = Array<Buffer>(99).fill(batchImage);
+    const batchManifest = Buffer.from(JSON.stringify({images: batchImages.map(bytes => ({bytes: bytes.length, mime: 'image/png', sha256: sha256(bytes)}))}));
     const batchPrefix = Buffer.alloc(4); batchPrefix.writeUInt32BE(batchManifest.length);
     const batchId = randomUUID();
-    const batchResult = await request('/v1/batches', Buffer.concat([batchPrefix, batchManifest, ...Array.from({length: 10}, () => image)]), token,
+    const batchResult = await request('/v1/batches', Buffer.concat([batchPrefix, batchManifest, ...batchImages]), token,
       {'Content-Type': 'application/x-imagebridge-batch', 'X-Request-Id': batchId, 'X-Content-SHA256': sha256(batchManifest)});
     const batchFiles = await readFiles();
-    const batchClipboard = batchResult.body.status === 'copied' && batchFiles.length === 10 && batchFiles.every((file, index) => path.basename(file) === `${batchId}-${String(index + 1).padStart(2, '0')}.png`);
+    const batchClipboard = capabilities.body.maxBatchImages === batchImages.length && batchResult.body.status === 'copied' &&
+      batchFiles.length === batchImages.length && batchFiles.every((file, index) => path.basename(file) === `${batchId}-${String(index + 1).padStart(2, '0')}.png`);
     const report = {pairing: paired.status === 201, transfer: result.body.status === 'copied', clipboard: {width: meta.width, height: meta.height, alpha: meta.hasAlpha},
-      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
+      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, batchFileCount: batchFiles.length, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
     const clipboardGuardPassed = windows ? staleWriteRejected : missingFileRejected;
     if (!report.pairing || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !clipboardGuardPassed || meta.width !== 720) throw new Error(JSON.stringify(report));
     return report;

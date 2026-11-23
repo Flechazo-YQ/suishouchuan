@@ -12,7 +12,7 @@ async function main() {
   const store = new Store(directory, {seal: value => value, open: value => value});
   let copied = 0;
   const receiver = new Receiver(store, async file => { await sharp(file).metadata(); copied += 1; }, () => {}, async files => {
-    if (files.length !== 2) throw new Error('Unexpected image count');
+    if (files.length !== 99) throw new Error('Unexpected image count');
     await Promise.all(files.map(file => sharp(file).metadata())); copied += 1;
   });
   await receiver.start(0);

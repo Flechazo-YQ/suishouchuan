@@ -51,9 +51,12 @@ struct TransferDraft: Identifiable {
             try store.save(device); try reload(); discovery.start(); message = String(localized: "Paired with “\(device.name)”")
         } catch { report(error) }
     }
-    func importProviders(_ providers: [NSItemProvider], separately: Bool = false, autoSend: Bool = false) async {
+    func importProviders(_ providers: [NSItemProvider], separately: Bool = false, autoSend: Bool = false, limit: Int = CaptureBatch.defaultLimit) async {
         guard !busy, let directory else { return }
-        guard !providers.isEmpty, providers.count + (separately ? 0 : items.count) <= 10 else { report(BridgeError.message(String(localized: "A batch can hold up to 10 images."))); return }
+        guard !providers.isEmpty, providers.count + (separately ? 0 : items.count) <= limit else {
+            report(BridgeError.message(String(localized: "This batch can hold up to \(limit) images.")))
+            return
+        }
         busy = true; failure = false; message = String(localized: "Preparing items…")
         var imported: [MediaItem] = []
         do {
@@ -92,7 +95,9 @@ struct TransferDraft: Identifiable {
         }
     }
     private func validate(_ all: [MediaItem]) throws {
-        guard all.count <= 10, all.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else { throw BridgeError.message(String(localized: "Send your current batch first. Each batch holds up to 10 images and 100 MB.")) }
+        guard all.count <= CaptureBatch.maximum, all.reduce(0, { $0 + $1.bytes }) <= 100_000_000 else {
+            throw BridgeError.message(String(localized: "Send your current batch first. Each batch holds up to 99 images and 100 MB."))
+        }
         guard all.count <= 1 || all.allSatisfy({ $0.mime != "video/mp4" }) else { throw BridgeError.message(String(localized: "Send or clear the current items first. Videos must be sent individually.")) }
     }
     private var snapshot: TransferDraft { TransferDraft(items: items, source: source, requestId: requestId) }

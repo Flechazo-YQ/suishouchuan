@@ -7,6 +7,7 @@ import {MAX_BYTES, MAX_CACHE_BYTES, MAX_PIXELS, sha256} from './store';
 import type {BatchImage} from './types';
 
 interface Entry {bytes: number; mime: 'image/png' | 'image/jpeg'; sha256: string}
+export const MAX_BATCH_IMAGES = 99;
 class Reader {
   private iterator: AsyncIterator<Buffer>;
   private pending = Buffer.alloc(0);
@@ -32,7 +33,9 @@ class Reader {
 }
 function manifest(data: Buffer): Entry[] {
   const value: unknown = JSON.parse(data.toString('utf8'));
-  if (!value || typeof value !== 'object' || !('images' in value) || !Array.isArray(value.images) || value.images.length < 1 || value.images.length > 10) throw new Error('每组请选择 1–10 张图片');
+  if (!value || typeof value !== 'object' || !('images' in value) || !Array.isArray(value.images) || value.images.length < 1 || value.images.length > MAX_BATCH_IMAGES) {
+    throw new Error(`每组请选择 1–${MAX_BATCH_IMAGES} 张图片`);
+  }
   const entries = value.images as Entry[];
   if (entries.some(item => !item || !Number.isSafeInteger(item.bytes) || item.bytes <= 0 || item.bytes > MAX_BYTES || !['image/png', 'image/jpeg'].includes(item.mime) || !/^[a-f0-9]{64}$/.test(item.sha256))) throw new Error('图集清单无效，单图上限 32 MB');
   if (entries.reduce((sum, item) => sum + item.bytes, 0) > MAX_CACHE_BYTES) throw new Error('整组超过 100 MB，请分成更小的图集');

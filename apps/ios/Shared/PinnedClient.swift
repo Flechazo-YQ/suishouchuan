@@ -25,11 +25,24 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
     }
 
     func send(_ payload: UploadPayload, requestId: UUID) async throws -> TransferResult {
+        if payload.imageCount > CaptureBatch.defaultLimit {
+            struct Capabilities: Decodable { let maxBatchImages: Int }
+            let maxImages: Int
+            do {
+                let data = try await request(route: "/v1/capabilities", method: "GET")
+                maxImages = try JSONDecoder().decode(Capabilities.self, from: data).maxBatchImages
+            } catch BridgeError.receiver(status: 404, message: _) {
+                maxImages = CaptureBatch.defaultLimit
+            }
+            guard maxImages >= payload.imageCount else {
+                throw BridgeError.message(String(localized: "Update CtrlV or CommandV to send more than 10 images together. Your batch is still here."))
+            }
+        }
         let data = try await request(route: payload.route, payload: payload, requestId: requestId)
         return try JSONDecoder().decode(TransferResult.self, from: data)
     }
 
-    private func request(route: String, json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil) async throws -> Data {
+    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil) async throws -> Data {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 150
@@ -41,7 +54,7 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         for address in addresses where isPrivateAddress(address) {
             guard (1...65535).contains(port), let url = URL(string: "https://\(address):\(port)\(route)") else { continue }
             var request = URLRequest(url: url)
-            request.httpMethod = "POST"
+            request.httpMethod = method
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             if let token { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
             if let payload, let requestId {
@@ -50,7 +63,7 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
                 request.setValue(payload.digest, forHTTPHeaderField: "X-Content-SHA256")
                 let bytes = try payload.file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
                 request.setValue(String(bytes), forHTTPHeaderField: "Content-Length")
-            } else {
+            } else if let json {
                 request.httpBody = json
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }

@@ -10,11 +10,13 @@ import ActivityKit
     static let shared = ScreenCaptureSession()
     @Published var message = ""
     @Published private(set) var active = false
+    @Published private(set) var batchLimit = CaptureBatch.defaultLimit
     let starting = false, recording = false, finishing = false, pendingShot = false
     let files: [URL] = []
     let seconds = 0
     let isVideo = false
-    func presentPicker() {
+    func presentPicker(limit: Int) {
+        batchLimit = CaptureBatch.limit(limit)
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-screen-capture-active") {
             active = true
@@ -23,7 +25,7 @@ import ActivityKit
         #endif
         message = String(localized: "Cross-app screen capture is available on an iPhone.")
     }
-    func requestFrame() throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
+    func requestFrame(after delay: Duration = .milliseconds(1500)) throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func toggleRecording() async throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func requestStopConfirmation() async {}
     func confirmStop() async {}
@@ -38,6 +40,7 @@ import ActivityKit
 @MainActor final class ScreenCaptureSession: NSObject, ObservableObject {
     static let shared = ScreenCaptureSession()
     @Published private(set) var active = false
+    @Published private(set) var batchLimit = CaptureBatch.defaultLimit
     @Published private(set) var starting = false
     @Published private(set) var recording = false
     @Published private(set) var finishing = false
@@ -63,7 +66,7 @@ import ActivityKit
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("ScreenDraft", isDirectory: true)
     }
     var isVideo: Bool { files.first?.pathExtension == "mp4" }
-    private var canCapture: Bool { active && !recording && !finishing && !isVideo && files.count < 10 }
+    private var canCapture: Bool { active && !recording && !finishing && !isVideo && files.count < batchLimit }
 
     override init() {
         super.init()
@@ -77,8 +80,9 @@ import ActivityKit
         } catch { message = error.localizedDescription }
     }
 
-    func presentPicker() {
+    func presentPicker(limit: Int) {
         guard !starting, !active else { return }
+        batchLimit = max(CaptureBatch.limit(limit), min(files.count, CaptureBatch.maximum))
         #if targetEnvironment(simulator)
         message = String(localized: "Cross-app screen capture is available on an iPhone.")
         return
@@ -111,9 +115,9 @@ import ActivityKit
     fileprivate func cancelled() { starting = false; message = String(localized: "Screen capture cancelled."); deactivatePicker() }
     private func deactivatePicker() { SCContentSharingPicker.shared.remove(observer); SCContentSharingPicker.shared.isActive = false }
 
-    func requestFrame() throws {
+    func requestFrame(after delay: Duration = .milliseconds(1500)) throws {
         guard !pendingShot else { return }
-        guard canCapture else { throw BridgeError.message(active ? String(localized: "Finish your recording or clear the current batch. A batch can hold up to 10 screenshots.") : String(localized: "Start screen capture in CommandC first.")) }
+        guard canCapture else { throw BridgeError.message(active ? String(localized: "Finish recording or review the current batch before taking another screenshot.") : String(localized: "Start screen capture in CommandC first.")) }
         pendingShot = true
         let id = UUID()
         let current = generation
@@ -125,13 +129,13 @@ import ActivityKit
                 self.endShotBackground(id)
             }
         }
-        shot = (id, Task { await finishShot(id: id, generation: current) }, background)
+        shot = (id, Task { await finishShot(id: id, generation: current, after: delay) }, background)
     }
 
-    private func finishShot(id: UUID, generation current: UUID) async {
+    private func finishShot(id: UUID, generation current: UUID, after delay: Duration) async {
         defer { clearShot(id) }
         do {
-            try await Task.sleep(for: .milliseconds(1500))
+            try await Task.sleep(for: delay)
             try saveFrame(generation: current)
         } catch {
             guard generation == current else { return }
@@ -143,7 +147,7 @@ import ActivityKit
         shotFailed = false
         message = ""
         await updateActivity()
-        if generation == current, files.count == 10 {
+        if generation == current, files.count == batchLimit {
             // Give the last saved count time to appear before the activity ends.
             try? await Task.sleep(for: .milliseconds(750))
             guard generation == current else { return }
@@ -275,7 +279,7 @@ import ActivityKit
     private var state: ScreenCaptureAttributes.ContentState {
         .init(count: files.count, recording: recording, pending: finishing, startedAt: videoStart,
               message: recording ? String(localized: "Recording · Up to 30 seconds") : shotFailed ? String(localized: "Not saved") : String(localized: "Capture active"),
-              shotFailed: shotFailed, confirmingStop: stopConfirmationDeadline.map { $0 > Date() })
+              shotFailed: shotFailed, confirmingStop: stopConfirmationDeadline.map { $0 > Date() }, batchLimit: batchLimit)
     }
     private func startActivity() {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = String(localized: "Capture is ready. Enable Live Activities or use the CommandC shortcut with the Action button."); return }

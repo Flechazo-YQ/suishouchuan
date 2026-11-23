@@ -8,7 +8,7 @@ import sharp from 'sharp';
 import {Store, sha256, MAX_BYTES, MAX_PIXELS, MAX_CACHE_BYTES} from './store';
 import type {Device, Pairing, Transfer} from './types';
 import {inspectVideo, videoThumbnail, MAX_VIDEO_BYTES} from './media';
-import {receiveBatch} from './batch';
+import {MAX_BATCH_IMAGES, receiveBatch} from './batch';
 
 // libvips may retain JPEG file handles on Windows after decoding.
 sharp.cache(false);
@@ -107,6 +107,9 @@ export class Receiver {
     if (!isPrivate(req.socket.remoteAddress ?? '') || req.headers.origin) throw new RequestError(403, '只接受局域网客户端请求');
     if (req.url === '/v1/pair' && req.method === 'POST') return this.pair(req, res);
     const device = this.authenticate(req);
+    if (req.url === '/v1/capabilities' && req.method === 'GET') {
+      return this.reply(res, 200, {maxBatchImages: this.copyMany ? MAX_BATCH_IMAGES : 1});
+    }
     const statusMatch = req.url?.match(/^\/v1\/transfers\/([a-f0-9-]+)$/i);
     if (req.method === 'GET' && statusMatch) {
       const item = this.store.state.transfers.find(value => value.requestId === statusMatch[1] && value.clientId === device.clientId);

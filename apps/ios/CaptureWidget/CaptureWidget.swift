@@ -9,7 +9,7 @@ import ActivityKit
                 HStack {
                     Text(context.state.message).font(.headline)
                     Spacer()
-                    Text("\(context.state.count)/10").monospacedDigit().contentTransition(.numericText())
+                    Text("\(context.state.count)/\(context.state.batchLimit ?? 10)").monospacedDigit().contentTransition(.numericText())
                 }
                 captureButtons(context.state)
             }.padding().activityBackgroundTint(.black).activitySystemActionForegroundColor(.white)
@@ -19,7 +19,7 @@ import ActivityKit
                     Text("CommandC").font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("\(context.state.count)/10").font(.caption.monospacedDigit()).lineLimit(1).contentTransition(.numericText())
+                    Text("\(context.state.count)/\(context.state.batchLimit ?? 10)").font(.caption.monospacedDigit()).lineLimit(1).contentTransition(.numericText())
                 }
                 DynamicIslandExpandedRegion(.center) {
                     if context.state.recording, let start = context.state.startedAt { Text(start, style: .timer).monospacedDigit() }
@@ -58,7 +58,7 @@ import ActivityKit
     }
     @ViewBuilder private func captureButtons(_ state: ScreenCaptureAttributes.ContentState) -> some View {
         HStack(spacing: 10) {
-            Button(intent: CaptureScreenFrameIntent()) { Label("Capture", systemImage: "rectangle.dashed") }.disabled(state.pending || state.recording || state.count >= 10)
+            Button(intent: CaptureIslandFrameIntent()) { Label("Capture", systemImage: "rectangle.dashed") }.disabled(state.pending || state.recording || state.count >= (state.batchLimit ?? 10))
             Button(intent: ToggleScreenRecordingIntent()) { Label(state.recording ? "Stop Recording" : "Record", systemImage: state.recording ? "stop.fill" : "record.circle") }.disabled(state.pending || state.count > 0)
             Link(destination: URL(string: "imagebridge://screen")!) {
                 Text("Review").fontWeight(.semibold)

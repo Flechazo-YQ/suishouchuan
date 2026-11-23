@@ -7,6 +7,7 @@ struct ContentView: View {
     @StateObject private var camera = CameraCapture()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("captureBatchLimit") private var captureBatchLimit = CaptureBatch.defaultLimit
     @State private var burst = false
     @State private var reviewing = false
     @State private var reviewIndex = 0
@@ -50,11 +51,12 @@ struct ContentView: View {
             NavigationView { QRScanner { queuePairing($0) }.navigationTitle("Scan Computer QR Code").toolbar { Button("Cancel") { showScanner = false } } }
         }
         .sheet(isPresented: $showLibrary) {
-            LibraryPicker(limit: 10, kind: libraryKind) { providers in
+            let selectionLimit = libraryKind == .images ? CaptureBatch.limit(captureBatchLimit) : CaptureBatch.defaultLimit
+            LibraryPicker(limit: selectionLimit, kind: libraryKind) { providers in
                 showLibrary = false
                 guard !providers.isEmpty else { return }
                 Task {
-                    await model.importProviders(providers, separately: true, autoSend: true)
+                    await model.importProviders(providers, separately: true, autoSend: true, limit: selectionLimit)
                     syncDraftPresentation()
                 }
             }
@@ -200,14 +202,18 @@ struct ContentView: View {
     private var captureFooter: some View {
         VStack(spacing: 9) {
             CaptureModeTabs(burst: $burst, locked: locked)
-            Text(camera.recording ? "Release to finish. Up to 30 seconds." : burst ? "Tap for each photo. Up to 10." : "Tap for a photo. Hold for video.")
-                .font(.footnote).foregroundColor(.gray)
+            if burst {
+                BatchLimitControl(limit: $captureBatchLimit, count: model.items.count).disabled(locked)
+            } else {
+                Text(camera.recording ? "Release to finish. Up to 30 seconds." : "Tap for a photo. Hold for video.")
+                    .font(.footnote).foregroundColor(.gray)
+            }
             HStack(spacing: 8) {
                 captureTool("Photos", icon: "photo.on.rectangle.angled") {
                     libraryKind = .all
                     showLibrary = true
                 }
-                ShutterButton(burst: burst, recording: camera.recording, enabled: (camera.ready || testCamera) && !model.busy && !camera.capturing && !camera.finishing && (!burst || model.items.count < 10), photo: takePhoto, beginVideo: camera.startRecording, endVideo: camera.stopRecording)
+                ShutterButton(burst: burst, recording: camera.recording, enabled: (camera.ready || testCamera) && !model.busy && !camera.capturing && !camera.finishing && (!burst || model.items.count < CaptureBatch.limit(captureBatchLimit)), photo: takePhoto, beginVideo: camera.startRecording, endVideo: camera.stopRecording)
                 captureTool("Screen Capture", icon: "rectangle.dashed.badge.record") { showScreenTools = true }
             }
             Group {
@@ -247,7 +253,7 @@ struct ContentView: View {
     }
     private var thumbnailStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            LazyHStack(spacing: 10) {
                 ForEach(Array(model.items.enumerated()), id: \.element.id) { index, item in
                     ZStack(alignment: .topTrailing) {
                         Button { reviewIndex = index; reviewing = true } label: {
@@ -315,6 +321,7 @@ struct ContentView: View {
                     } else {
                         Label("iPhone Screenshots", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
                         Text("Take a screenshot on your iPhone, then tap Share → CommandC → Confirm Send. To send several at once, select them below.").foregroundColor(.secondary)
+                        BatchLimitControl(limit: $captureBatchLimit, count: 0)
                         Button("Choose Screenshots") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
                         Divider()
                         Label("iPhone Screen Recordings", systemImage: "record.circle").font(.title3.weight(.semibold))
@@ -354,7 +361,7 @@ struct ContentView: View {
         Task { if await model.send() { model.restoreLastDraft(); syncDraftPresentation() } }
     }
     private func takePhoto() {
-        guard !locked, !burst || model.items.count < 10 else { return }
+        guard !locked, !burst || model.items.count < CaptureBatch.limit(captureBatchLimit) else { return }
         #if DEBUG
         if testCamera {
             guard let directory = model.directory else { return }
