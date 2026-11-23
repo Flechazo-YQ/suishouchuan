@@ -132,7 +132,7 @@ import ActivityKit
     func updateBatchLimit(_ limit: Int) { batchLimit = CaptureBatch.limit(limit) }
     func prepareReview() {
         liveActivity.dismissCurrent()
-        if recording { simulateSaving(after: .seconds(12)) }
+        if recording { simulateSaving(after: .seconds(30)) }
         else if !finishing { active = false }
     }
     func stop() async {

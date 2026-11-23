@@ -149,7 +149,7 @@ final class LaunchTests: XCTestCase {
         app.buttons["Done"].tap()
         XCUIDevice.shared.press(.home)
 
-        app.open(URL(string: "imagebridge://screen/review")!)
+        XCUIDevice.shared.system.open(URL(string: "imagebridge://screen/review")!)
         XCTAssertTrue(app.navigationBars["Screen Capture"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Cancel Saving"].exists)
         XCTAssertFalse(app.staticTexts["Recording · 0 s"].exists)
