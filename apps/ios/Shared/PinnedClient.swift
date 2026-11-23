@@ -23,13 +23,27 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         guard let token, !token.isEmpty else { return nil }
         do {
             return try await withMediaDeadline(seconds: 8, timeout: .message(String(localized: "Checking connection timed out."))) {
-                do {
-                    return try await self.requestResponse(route: "/v1/presence", method: "GET", timeout: 3).address
-                } catch BridgeError.receiver(status: 404, message: _) {
-                    // Legacy receivers authenticate before looking up the transfer. A missing record is expected.
-                    return try await self.requestResponse(route: Self.legacyProbe, method: "GET", timeout: 3).address
+                await withTaskGroup(of: String?.self) { group in
+                    for address in Set(self.addresses.filter(isPrivateAddress)) {
+                        group.addTask { await self.probe(address) }
+                    }
+                    for await result in group {
+                        if let result { group.cancelAll(); return result }
+                    }
+                    return nil
                 }
             }
+        } catch { return nil }
+    }
+
+    private func probe(_ address: String) async -> String? {
+        do {
+            _ = try await request(route: "/v1/presence", method: "GET", timeout: 3, onlyAddress: address)
+            return address
+        } catch BridgeError.receiver(status: 404, message: _) {
+            // Legacy receivers authenticate before looking up the transfer. A missing record is expected.
+            guard (try? await request(route: Self.legacyProbe, method: "GET", timeout: 3, onlyAddress: address)) != nil else { return nil }
+            return address
         } catch { return nil }
     }
 
@@ -70,11 +84,7 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         return try JSONDecoder().decode(TransferResult.self, from: data)
     }
 
-    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil) async throws -> Data {
-        try await requestResponse(route: route, method: method, json: json, payload: payload, requestId: requestId).data
-    }
-
-    private func requestResponse(route: String, method: String, json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil, timeout: TimeInterval = 30) async throws -> (data: Data, address: String) {
+    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil, timeout: TimeInterval = 30, onlyAddress: String? = nil) async throws -> Data {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = 150
@@ -83,7 +93,8 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var lastError: Error?
-        for address in addresses where isPrivateAddress(address) {
+        let candidates = onlyAddress.map { [$0] } ?? addresses
+        for address in candidates where isPrivateAddress(address) {
             try Task.checkCancellation()
             guard (1...65535).contains(port), let url = URL(string: "https://\(address):\(port)\(route)") else { continue }
             var request = URLRequest(url: url)
@@ -108,12 +119,12 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
                 guard (200...299).contains(http.statusCode) else {
                     let result = try? JSONDecoder().decode(TransferResult.self, from: response.0)
                     if route == Self.legacyProbe, http.statusCode == 404, result?.error == "未找到发送记录，可以重试" {
-                        return (response.0, address)
+                        return response.0
                     }
                     let message = receiverError(result?.error, status: http.statusCode, pairing: route == "/v1/pair")
                     throw BridgeError.receiver(status: http.statusCode, message: message)
                 }
-                return (response.0, address)
+                return response.0
             } catch let error as URLError {
                 if error.code == .cancelled { throw error }
                 lastError = error
