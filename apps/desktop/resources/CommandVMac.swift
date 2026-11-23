@@ -22,6 +22,8 @@ struct VideoMetadata: Encodable {
 
 @main
 enum CommandVMac {
+    private static let fileListType = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+
     @MainActor private static func copyImage(_ file: URL) throws {
         let bytes = try Data(contentsOf: file)
         guard let source = NSImage(data: bytes), let tiff = source.tiffRepresentation else {
@@ -39,8 +41,10 @@ enum CommandVMac {
     }
 
     @MainActor private static func filePaths(_ pasteboard: NSPasteboard) -> [String] {
-        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
-        return urls?.map { $0.standardizedFileURL.path } ?? []
+        pasteboard.pasteboardItems?.compactMap { item in
+            guard let text = item.string(forType: .fileURL), let url = URL(string: text), url.isFileURL else { return nil }
+            return url.standardizedFileURL.path
+        } ?? []
     }
 
     @MainActor private static func copyFiles(_ files: [URL]) throws {
@@ -57,9 +61,13 @@ enum CommandVMac {
             }
             return item
         }
+        let paths = files.map(\.path)
+        if items.count > 1, !items[0].setPropertyList(paths, forType: fileListType) {
+            throw HelperError.clipboardRejected
+        }
         pasteboard.clearContents()
         guard pasteboard.writeObjects(items), pasteboard.changeCount != previous,
-              filePaths(pasteboard) == files.map(\.path) else { throw HelperError.clipboardRejected }
+              filePaths(pasteboard) == paths else { throw HelperError.clipboardRejected }
     }
 
     private static func inspectVideo(_ file: URL) async throws -> VideoMetadata {
