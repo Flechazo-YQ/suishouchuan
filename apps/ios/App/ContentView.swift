@@ -210,8 +210,13 @@ struct ContentView: View {
                 ShutterButton(burst: burst, recording: camera.recording, enabled: (camera.ready || testCamera) && !model.busy && !camera.capturing && !camera.finishing && (!burst || model.items.count < 10), photo: takePhoto, beginVideo: camera.startRecording, endVideo: camera.stopRecording)
                 captureTool("Screen Capture", icon: "rectangle.dashed.badge.record") { showScreenTools = true }
             }
-            Text(model.items.isEmpty ? "Swipe left for Burst or right for Camera." : "Your batch stays here while you use Photos or Screen Capture.")
-                .font(.caption).foregroundColor(.gray)
+            Group {
+                if !model.items.isEmpty {
+                    Text("Your batch stays here while you use Photos or Screen Capture.")
+                } else if Bundle.main.preferredLocalizations.first == "zh-Hans" {
+                    Text("Swipe left for Burst or right for Camera.")
+                }
+            }.font(.caption).foregroundColor(.gray)
         }.multilineTextAlignment(.center).padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 10)
     }
 

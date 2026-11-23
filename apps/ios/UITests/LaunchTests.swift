@@ -58,6 +58,7 @@ final class LaunchTests: XCTestCase {
         let app = launch(["--ui-camera"])
         let finder = app.otherElements["viewfinder"]
         XCTAssertTrue(finder.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["左滑连拍 · 右滑拍摄"].exists)
         finder.swipeLeft()
         XCTAssertTrue(app.buttons["连拍：拍摄一张并继续取景"].waitForExistence(timeout: 3))
         finder.swipeRight()
@@ -119,6 +120,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(photos.isHittable)
         XCTAssertTrue(screen.isHittable)
         XCTAssertTrue(app.buttons["Connect Computer"].isHittable)
+        XCTAssertFalse(app.staticTexts["Swipe left for Burst or right for Camera."].exists)
         attach(app, "CommandC English camera")
 
         app.buttons["Burst"].tap()
@@ -128,6 +130,7 @@ final class LaunchTests: XCTestCase {
         shutter.tap()
         let review = app.buttons["Review (1)"]
         XCTAssertTrue(review.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Your batch stays here while you use Photos or Screen Capture."].exists)
         review.tap()
         XCTAssertTrue(app.buttons["Send"].isHittable)
         XCTAssertTrue(app.staticTexts["Preview 1 / 1"].exists)
