@@ -16,7 +16,7 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
 
     func checkConnection() async -> Bool {
         do {
-            let result = try await withMediaDeadline(seconds: 8, timeout: URLError(.timedOut)) {
+            let result = try await withMediaDeadline(seconds: 8, timeout: .message(String(localized: "Checking connection timed out."))) {
                 do {
                     return try await self.request(route: "/v1/presence", method: "GET", timeout: 3)
                 } catch BridgeError.receiver(status: 404, message: _) {
