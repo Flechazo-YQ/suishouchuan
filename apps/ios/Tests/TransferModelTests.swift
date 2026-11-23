@@ -71,9 +71,11 @@ import UIKit
     func testCaptureSwitchAndLimitDoNotDiscardExistingGroup() throws {
         let model = TransferModel(loadDevices: false)
         defer { model.cleanup() }
-        for _ in 0..<10 { try model.appendCapture(image(model), burst: true) }
+        try model.appendCapture(image(model), burst: true, limit: 1)
+        XCTAssertThrowsError(try model.appendCapture(image(model), burst: true, limit: 1))
+        for _ in 1..<99 { try model.appendCapture(image(model), burst: true, limit: 99) }
         let originalIds = model.items.map(\.id), request = model.requestId
-        XCTAssertThrowsError(try model.appendCapture(image(model), burst: true))
+        XCTAssertThrowsError(try model.appendCapture(image(model), burst: true, limit: 99))
         XCTAssertEqual(model.items.map(\.id), originalIds)
         model.switchCapture(burst: false)
         try model.appendCapture(image(model), burst: false)

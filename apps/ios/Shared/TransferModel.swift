@@ -112,8 +112,12 @@ struct TransferDraft: Identifiable {
         if let saved = savedDrafts.first(where: { $0.source == next }) { selectDraft(saved.id) }
         else { beginIndependent(next) }
     }
-    func appendCapture(_ item: MediaItem, burst: Bool) throws {
+    func appendCapture(_ item: MediaItem, burst: Bool, limit: Int = CaptureBatch.defaultLimit) throws {
         let next: MaterialSource = item.mime == "video/mp4" ? .video : (burst ? .burst : .photo)
+        let limit = CaptureBatch.limit(limit)
+        if next == .burst && source == .burst && items.count >= limit {
+            throw BridgeError.message(String(localized: "This batch can hold up to \(limit) images."))
+        }
         try validate(next == .burst && source == .burst ? items + [item] : [item])
         if source != next || next != .burst { beginIndependent(next) }
         try append([item])

@@ -370,7 +370,7 @@ struct ContentView: View {
                     UIColor(red: 0.2, green: 0.3, blue: 0.15, alpha: 1).setFill(); context.fill(CGRect(x: 0, y: 0, width: 320, height: 480))
                     ("UI \(model.items.count + 1)" as NSString).draw(at: CGPoint(x: 30, y: 150), withAttributes: [.font: UIFont.systemFont(ofSize: 54), .foregroundColor: UIColor.white])
                 }
-                try model.appendCapture(MediaImporter.cameraImage(image, into: directory), burst: burst)
+                try model.appendCapture(MediaImporter.cameraImage(image, into: directory), burst: burst, limit: captureBatchLimit)
                 if !burst { reviewing = true }
             } catch { model.report(error) }
             return
@@ -392,7 +392,7 @@ struct ContentView: View {
                 let item: MediaItem
                 if video { item = try await MediaImporter.video(file, into: directory) }
                 else { item = try MediaImporter.image(file, into: directory) }
-                do { try model.appendCapture(item, burst: burst) }
+                do { try model.appendCapture(item, burst: burst, limit: captureBatchLimit) }
                 catch { try? FileManager.default.removeItem(at: item.url); throw error }
                 model.message = ""
                 if video || !burst { reviewIndex = 0; reviewing = true }
