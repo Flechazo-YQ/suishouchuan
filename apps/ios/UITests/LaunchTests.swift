@@ -95,7 +95,7 @@ final class LaunchTests: XCTestCase {
 
     func testActiveScreenCaptureUsesIslandControls() throws {
         guard #available(iOS 27.0, *) else { throw XCTSkip("Native screen capture needs iOS 27") }
-        let app = launch(["--ui-camera", "--ui-screen-capture-active"])
+        let app = launch(["--ui-camera", "--ui-screen-capture-active", "--ui-screen-capture-activity"])
         let screenTools = app.buttons["截屏 / 录屏"]
         XCTAssertTrue(screenTools.waitForExistence(timeout: 10))
         screenTools.tap()
@@ -103,12 +103,17 @@ final class LaunchTests: XCTestCase {
 
         let stop = app.buttons["停止采集"]
         XCTAssertTrue(stop.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Capture Live Activity started."].exists)
         XCTAssertFalse(app.buttons["1.5 秒后截取"].exists)
         XCTAssertFalse(app.buttons["开始录屏"].exists)
         attach(app, "CommandC active screen capture")
 
         stop.tap()
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.staticTexts["Capture Live Activity dismissed."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["开始屏幕采集"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["开始屏幕采集"].isEnabled)
     }
 
     func testStalledRecordingCanBeCanceledAndTimesOut() throws {

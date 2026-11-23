@@ -30,13 +30,13 @@ struct NativeScreenTools: View {
                     Text("Start Screen Capture")
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, minHeight: 44)
-                }.buttonStyle(.borderedProminent).disabled(capture.finishing)
+                }.buttonStyle(.borderedProminent).disabled(capture.finishing || capture.ending)
             }
             if !capture.message.isEmpty { Text(capture.message).font(.footnote).foregroundColor(.secondary).accessibilityIdentifier("screenCaptureStatus") }
             if capture.pendingShot || capture.finishing { ProgressView(capture.pendingShot ? "Swipe up on the Dynamic Island to collapse it…" : "Saving recording…") }
             if capture.finishing {
                 Button("Cancel Saving", role: .destructive) { Task { await capture.stop() } }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: 44).disabled(capture.ending)
             }
             if !capture.files.isEmpty {
                 Divider()
@@ -75,7 +75,7 @@ struct NativeScreenTools: View {
                                 capture.message = error.localizedDescription
                             }
                         }
-                    }.buttonStyle(.borderedProminent).disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
+                    }.buttonStyle(.borderedProminent).disabled(importing || capture.pendingShot || capture.recording || capture.finishing || capture.ending)
                     Button("Clear", role: .destructive) { discard = true }.disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
                 }
                 if let preparation { Button("Cancel Preparing", role: .cancel) { preparation.cancel() } }
@@ -98,7 +98,7 @@ struct NativeScreenTools: View {
 
     private var stopButton: some View {
         Button("End Capture") { Task { await capture.stop() } }
-            .frame(minHeight: 44).disabled(capture.finishing)
+            .frame(minHeight: 44).disabled(capture.finishing || capture.ending)
     }
 
     private var captureGuide: some View {

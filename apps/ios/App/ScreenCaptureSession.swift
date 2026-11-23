@@ -5,6 +5,59 @@ import CoreImage
 import ActivityKit
 
 @available(iOS 27.0, *)
+@MainActor private final class ScreenCaptureLiveActivity {
+    private typealias CaptureActivity = Activity<ScreenCaptureAttributes>
+    private var current: CaptureActivity?
+    private var dismissals: [String: (task: Task<Void, Never>, background: UIBackgroundTaskIdentifier)] = [:]
+
+    func start(_ state: ScreenCaptureAttributes.ContentState) throws {
+        current = try CaptureActivity.request(attributes: ScreenCaptureAttributes(), content: ActivityContent(state: state, staleDate: nil), pushType: nil)
+    }
+
+    func update(_ state: ScreenCaptureAttributes.ContentState) async {
+        await current?.update(ActivityContent(state: state, staleDate: nil))
+    }
+
+    func dismissCurrent() {
+        guard let current else { return }
+        self.current = nil
+        dismiss(current)
+    }
+
+    func dismissOrphans() {
+        for activity in CaptureActivity.activities where activity.id != current?.id { dismiss(activity) }
+    }
+
+    func dismissAll() -> [Task<Void, Never>] {
+        dismissCurrent()
+        dismissOrphans()
+        return dismissals.values.map(\.task)
+    }
+
+    private func dismiss(_ activity: CaptureActivity) {
+        let id = activity.id
+        guard dismissals[id] == nil else { return }
+        // Acquire time before suspending so a quick return to the Home Screen cannot interrupt the dismissal.
+        let background = UIApplication.shared.beginBackgroundTask(withName: "CommandC dismiss capture activity") { [weak self] in
+            Task { @MainActor in self?.releaseBackground(for: id) }
+        }
+        dismissals[id] = (Task { [weak self] in
+            defer {
+                self?.releaseBackground(for: id)
+                self?.dismissals[id] = nil
+            }
+            await activity.end(activity.content, dismissalPolicy: .immediate)
+        }, background)
+    }
+
+    private func releaseBackground(for id: String) {
+        guard let background = dismissals[id]?.background, background != .invalid else { return }
+        dismissals[id]?.background = .invalid
+        UIApplication.shared.endBackgroundTask(background)
+    }
+}
+
+@available(iOS 27.0, *)
 @MainActor private final class RecordingSaveWatchdog {
     private var task: Task<Void, Never>?
 
@@ -31,11 +84,16 @@ import ActivityKit
     @Published private(set) var active = false
     @Published private(set) var batchLimit = CaptureBatch.defaultLimit
     @Published private(set) var finishing = false
+    @Published private(set) var ending = false
     let starting = false, recording = false, pendingShot = false
     let files: [URL] = []
     let seconds = 0
     let isVideo = false
     private let saveWatchdog = RecordingSaveWatchdog()
+    private let liveActivity = ScreenCaptureLiveActivity()
+    #if DEBUG
+    private var simulateLiveActivity: Bool { ProcessInfo.processInfo.arguments.contains("--ui-screen-capture-activity") }
+    #endif
     func presentPicker(limit: Int) {
         batchLimit = CaptureBatch.limit(limit)
         #if DEBUG
@@ -50,6 +108,13 @@ import ActivityKit
         }
         if ProcessInfo.processInfo.arguments.contains("--ui-screen-capture-active") {
             active = true
+            if simulateLiveActivity {
+                do {
+                    let state = ScreenCaptureAttributes.ContentState(count: 0, recording: false, pending: false, message: "Capture active")
+                    try liveActivity.start(state)
+                    message = "Capture Live Activity started."
+                } catch { message = error.localizedDescription }
+            }
             return
         }
         #endif
@@ -59,11 +124,22 @@ import ActivityKit
     func toggleRecording() async throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func requestStopConfirmation() async {}
     func confirmStop() async {}
-    func dismissOrphanedActivities() {}
+    func dismissOrphanedActivities() { liveActivity.dismissOrphans() }
     func updateBatchLimit(_ limit: Int) { batchLimit = CaptureBatch.limit(limit) }
     func stop() async {
+        guard !ending else { return }
+        ending = true
+        defer { ending = false }
+        let dismissals = liveActivity.dismissAll()
         if finishing { finishSaving(String(localized: "Recording save canceled.")) }
         else { active = false }
+        for dismissal in dismissals { await dismissal.value }
+        #if DEBUG
+        if simulateLiveActivity {
+            let stillVisible = Activity<ScreenCaptureAttributes>.activities.contains { $0.activityState == .active || $0.activityState == .stale }
+            if !dismissals.isEmpty && !stillVisible { message = "Capture Live Activity dismissed." }
+        }
+        #endif
     }
     private func finishSaving(_ result: String) {
         saveWatchdog.cancel()
@@ -85,6 +161,7 @@ import ActivityKit
     @Published private(set) var starting = false
     @Published private(set) var recording = false
     @Published private(set) var finishing = false
+    @Published private(set) var ending = false
     @Published private(set) var pendingShot = false
     @Published private(set) var files: [URL] = []
     @Published private(set) var seconds = 0
@@ -97,7 +174,7 @@ import ActivityKit
     private var timer: Timer?
     private let saveWatchdog = RecordingSaveWatchdog()
     private var saveBackground = UIBackgroundTaskIdentifier.invalid
-    private var activity: Activity<ScreenCaptureAttributes>?
+    private let liveActivity = ScreenCaptureLiveActivity()
     private var generation = UUID()
     private var shot: (id: UUID, task: Task<Void, Never>, background: UIBackgroundTaskIdentifier)?
     private var shotFailed = false
@@ -131,7 +208,7 @@ import ActivityKit
     }
 
     func presentPicker(limit: Int) {
-        guard !starting, !active, !finishing else { return }
+        guard !starting, !active, !finishing, !ending else { return }
         batchLimit = max(CaptureBatch.limit(limit), min(files.count, CaptureBatch.maximum))
         #if targetEnvironment(simulator)
         message = String(localized: "Cross-app screen capture is available on an iPhone.")
@@ -330,23 +407,25 @@ import ActivityKit
     }
 
     func stop() async {
+        guard !ending else { return }
+        ending = true
+        defer { ending = false }
+        let dismissals = liveActivity.dismissAll()
         if finishing, let output {
             recordingFinished(output, error: BridgeError.message(String(localized: "Recording save canceled.")))
         } else if recording {
             do { try endRecording() } catch { fail(error) }
         } else {
+            message = ""
             resetCapture()
         }
+        for dismissal in dismissals { await dismissal.value }
     }
 
-    func dismissOrphanedActivities() {
-        let orphaned = Activity<ScreenCaptureAttributes>.activities.filter { $0.id != activity?.id }
-        for previous in orphaned {
-            Task { await previous.end(nil, dismissalPolicy: .immediate) }
-        }
-    }
+    func dismissOrphanedActivities() { liveActivity.dismissOrphans() }
 
     private func resetCapture() {
+        liveActivity.dismissCurrent()
         saveWatchdog.cancel()
         stopConfirmationTask?.cancel()
         stopConfirmationTask = nil
@@ -359,12 +438,9 @@ import ActivityKit
         if let shot { shot.task.cancel(); clearShot(shot.id) }
         pendingShot = false; starting = false; active = false; latestFrame = nil
         let oldStream = stream
-        let oldActivity = activity
         stream = nil
-        activity = nil
         deactivatePicker()
         if let oldStream { Task { try? await oldStream.stopCapture() } }
-        if let oldActivity { Task { await oldActivity.end(nil, dismissalPolicy: .immediate) } }
         if saveBackground != .invalid {
             UIApplication.shared.endBackgroundTask(saveBackground)
             saveBackground = .invalid
@@ -403,10 +479,10 @@ import ActivityKit
     }
     private func startActivity() {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = String(localized: "Capture is ready. Enable Live Activities or use the CommandC shortcut with the Action button."); return }
-        do { activity = try Activity.request(attributes: ScreenCaptureAttributes(), content: ActivityContent(state: state, staleDate: nil), pushType: nil) }
+        do { try liveActivity.start(state) }
         catch { message = String(localized: "Capture is ready, but the Live Activity is unavailable: \(error.localizedDescription)") }
     }
-    private func updateActivity() async { if let activity { await activity.update(ActivityContent(state: state, staleDate: nil)) } }
+    private func updateActivity() async { await liveActivity.update(state) }
 }
 
 @available(iOS 27.0, *)
