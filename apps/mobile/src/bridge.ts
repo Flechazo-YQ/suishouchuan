@@ -7,6 +7,7 @@ interface BridgeNative {
   getState(): Promise<string>; takePending(): Promise<string | null>;
   takePairing(): Promise<string | null>;
   discover(): Promise<void>; stopDiscovery(): void;
+  checkConnection(id: string): Promise<boolean>;
   selectDevice(id: string): Promise<string>; removeDevice(id: string): Promise<string>;
   pair(uri: string): Promise<string>; scanQr(): Promise<string | null>; capture(): Promise<string | null>;
   record(): Promise<string | null>; stopRecording(): void;

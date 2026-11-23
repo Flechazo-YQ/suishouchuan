@@ -15,6 +15,7 @@ sharp.cache(false);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HASH = /^[0-9a-f]{64}$/;
+const DEVICE_PRESENCE_MS = 15 * 60_000 + 30_000;
 const equal = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export const isPrivate = (value: string) => /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(value.replace('::ffff:', ''));
 export function addresses() {
@@ -36,6 +37,8 @@ export class Receiver {
   private receivedOrder = 0;
   private clipboardQueue: Promise<void> = Promise.resolve();
   private attempts = new Map<string, {time: number; count: number}>();
+  private presence = new Map<string, number>();
+  private presenceTimer?: NodeJS.Timeout;
   port = 0;
   constructor(readonly store: Store, private readonly copy: (imagePath: string) => Promise<void>, private readonly changed: (item?: Transfer) => void, private readonly copyMany?: (paths: string[]) => Promise<void>) {}
   async start(port = 43821) {
@@ -59,9 +62,34 @@ export class Receiver {
     void this.store.prune();
   }
   async stop() {
+    clearTimeout(this.presenceTimer);
+    this.presence.clear();
     await new Promise<void>(resolve => this.server?.close(() => resolve()) ?? resolve());
     await Promise.allSettled([...this.requests]);
     await this.store.prune();
+  }
+  isConnected(device: Device, now = Date.now()) {
+    return (this.presence.get(device.tokenHash) ?? 0) > now;
+  }
+  refreshPresence(networkChanged = false) {
+    const previous = this.presence.size;
+    const now = Date.now();
+    for (const [tokenHash, expires] of this.presence) {
+      if (networkChanged || expires <= now || !this.store.state.devices.some(device => device.tokenHash === tokenHash)) this.presence.delete(tokenHash);
+    }
+    this.schedulePresenceExpiry();
+    if (this.presence.size !== previous) this.changed();
+  }
+  private trackPresence(device: Device) {
+    const online = this.isConnected(device);
+    this.presence.set(device.tokenHash, Date.now() + DEVICE_PRESENCE_MS);
+    this.schedulePresenceExpiry();
+    if (!online) this.changed();
+  }
+  private schedulePresenceExpiry() {
+    clearTimeout(this.presenceTimer);
+    const next = Math.min(...this.presence.values());
+    if (Number.isFinite(next)) this.presenceTimer = setTimeout(() => this.refreshPresence(), Math.max(1, next - Date.now())).unref();
   }
   pairing(): Pairing {
     this.invitation = {v: 1, deviceId: this.store.state.deviceId, name: this.store.state.name, addresses: addresses(), port: this.port,
@@ -99,14 +127,17 @@ export class Receiver {
     this.invitation = undefined;
     const token = randomBytes(32).toString('base64url');
     this.store.state.devices = this.store.state.devices.filter(item => item.clientId !== body.clientId);
-    this.store.state.devices.push({clientId: body.clientId, name: body.name.trim(), pairedAt: Date.now(), tokenHash: sha256(token)});
-    this.store.save(); this.changed();
+    const device = {clientId: body.clientId, name: body.name.trim(), pairedAt: Date.now(), tokenHash: sha256(token)};
+    this.store.state.devices.push(device);
+    this.store.save(); this.trackPresence(device);
     this.reply(res, 201, {deviceId: this.store.state.deviceId, name: this.store.state.name, token});
   }
   private async handle(req: IncomingMessage, res: ServerResponse) {
     if (!isPrivate(req.socket.remoteAddress ?? '') || req.headers.origin) throw new RequestError(403, '只接受局域网客户端请求');
     if (req.url === '/v1/pair' && req.method === 'POST') return this.pair(req, res);
     const device = this.authenticate(req);
+    this.trackPresence(device);
+    if (req.url === '/v1/presence' && req.method === 'GET') return this.reply(res, 200, {connected: true});
     if (req.url === '/v1/capabilities' && req.method === 'GET') {
       return this.reply(res, 200, {maxBatchImages: this.copyMany ? MAX_BATCH_IMAGES : 1});
     }

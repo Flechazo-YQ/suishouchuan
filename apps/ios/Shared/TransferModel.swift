@@ -4,6 +4,18 @@ import UIKit
 
 enum MaterialSource { case photo, burst, video, library, shared }
 
+enum ComputerConnection: Equatable {
+    case checking, connected, disconnected
+
+    var title: String {
+        switch self {
+        case .checking: return String(localized: "Checking connection…")
+        case .connected: return String(localized: "Connected")
+        case .disconnected: return String(localized: "Disconnected")
+        }
+    }
+}
+
 struct TransferDraft: Identifiable {
     let items: [MediaItem]
     let source: MaterialSource
@@ -22,8 +34,11 @@ struct TransferDraft: Identifiable {
     @Published var failure = false
     @Published private(set) var savedDrafts: [TransferDraft] = []
     @Published private(set) var source: MaterialSource = .shared
+    @Published private var connections: [String: ComputerConnection] = [:]
     private let store = DeviceStore()
     private let discovery = Discovery()
+    private var connectionTasks: [String: Task<Void, Never>] = [:]
+    private var connectionPoll: Task<Void, Never>?
     private(set) var directory: URL?
     private(set) var requestId = UUID()
     private(set) var originalScreenRecording: URL?
@@ -36,14 +51,63 @@ struct TransferDraft: Identifiable {
         do { directory = try MediaImporter.directory(); if loadDevices { try reload() } } catch { report(error) }
         discovery.resolved = { [weak self] id, addresses, port in
             guard let self, let index = self.devices.firstIndex(where: { $0.id == id }) else { return }
-            self.devices[index].addresses = addresses; self.devices[index].port = port
+            let previous = self.devices[index]
+            if Set(previous.addresses) != Set(addresses) || previous.port != port {
+                self.devices[index].addresses = addresses; self.devices[index].port = port
+            }
+            if self.connectionPoll != nil { self.checkConnection(self.devices[index]) }
+        }
+        discovery.removed = { [weak self] id in
+            guard let self, self.connectionPoll != nil, let device = self.devices.first(where: { $0.id == id }) else { return }
+            self.checkConnection(device)
         }
     }
-    func reload() throws { devices = try store.devices(); selectedId = store.selectedId }
+    func reload() throws {
+        let stored = try store.devices()
+        devices = stored.map { device in
+            devices.first { $0.id == device.id && $0.token == device.token } ?? device
+        }
+        selectedId = store.selectedId
+    }
     func startDiscovery() { discovery.start() }
     func stopDiscovery() { discovery.stop() }
+    func connection(for id: String) -> ComputerConnection { connections[id] ?? .checking }
+    func startConnectionMonitoring() {
+        stopConnectionMonitoring()
+        for device in devices { checkConnection(device, entering: true) }
+        connectionPoll = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 900_000_000_000) } catch { return }
+                guard let self else { return }
+                for device in self.devices { self.checkConnection(device) }
+            }
+        }
+    }
+    func stopConnectionMonitoring() {
+        connectionPoll?.cancel()
+        connectionPoll = nil
+        connectionTasks.values.forEach { $0.cancel() }
+        connectionTasks.removeAll()
+    }
+    private func checkConnection(_ device: PairedDevice, entering: Bool = false) {
+        connectionTasks[device.id]?.cancel()
+        if entering, connection(for: device.id) != .checking { connections[device.id] = .checking }
+        connectionTasks[device.id] = Task { [weak self] in
+            let connected = await PinnedClient(device: device).checkConnection()
+            guard let self, !Task.isCancelled, self.devices.contains(device) else { return }
+            self.connectionTasks[device.id] = nil
+            let status: ComputerConnection = connected ? .connected : .disconnected
+            if self.connection(for: device.id) != status { self.connections[device.id] = status }
+        }
+    }
     func select(_ id: String) { do { try store.select(id); selectedId = id } catch { report(error) } }
-    func removeDevice(_ id: String) { do { try store.remove(id); try reload() } catch { report(error) } }
+    func removeDevice(_ id: String) {
+        do {
+            try store.remove(id); try reload()
+            connectionTasks.removeValue(forKey: id)?.cancel()
+            connections.removeValue(forKey: id)
+        } catch { report(error) }
+    }
     func report(_ error: Error) { failure = true; message = error.localizedDescription }
     func pair(_ invitation: Invitation) async {
         guard !busy else { return }; busy = true; message = String(localized: "Pairing…"); failure = false
@@ -51,6 +115,7 @@ struct TransferDraft: Identifiable {
         do {
             let device = try await PinnedClient(invitation: invitation).pair(invitation, clientId: store.clientId(), name: "CommandC iPhone")
             try store.save(device); try reload(); discovery.start(); message = String(localized: "Paired with “\(device.name)”")
+            connections[device.id] = .connected
         } catch { report(error) }
     }
     func importProviders(_ providers: [NSItemProvider], separately: Bool = false, autoSend: Bool = false, limit: Int = CaptureBatch.defaultLimit) async {

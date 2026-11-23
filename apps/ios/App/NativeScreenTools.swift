@@ -4,10 +4,10 @@ import AVKit
 @available(iOS 27.0, *)
 struct NativeScreenTools: View {
     @ObservedObject private var capture = ScreenCaptureSession.shared
-    @AppStorage("captureBatchLimit") private var captureBatchLimit = CaptureBatch.defaultLimit
     @State private var preparation: Task<Void, Never>?
     @State private var discard = false
     @State private var selected: URL?
+    @Binding var limit: Int
     let review: ([URL]) async throws -> Void
     private var importing: Bool { preparation != nil }
 
@@ -26,13 +26,11 @@ struct NativeScreenTools: View {
                     VStack(alignment: .leading, spacing: 4) { activeStatus; stopButton }
                 }
             } else {
-                Button { capture.presentPicker(limit: captureBatchLimit) } label: {
+                Button { capture.presentPicker(limit: limit) } label: {
                     Text("Start Screen Capture")
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, minHeight: 44)
                 }.buttonStyle(.borderedProminent).disabled(capture.finishing)
-                BatchLimitControl(limit: $captureBatchLimit, count: capture.files.count)
-                    .disabled(capture.finishing || capture.isVideo)
             }
             if !capture.message.isEmpty { Text(capture.message).font(.footnote).foregroundColor(.secondary).accessibilityIdentifier("screenCaptureStatus") }
             if capture.pendingShot || capture.finishing { ProgressView(capture.pendingShot ? "Swipe up on the Dynamic Island to collapse it…" : "Saving recording…") }
@@ -86,6 +84,7 @@ struct NativeScreenTools: View {
             captureGuide
         }
         .onDisappear { preparation?.cancel() }
+        .onChange(of: limit) { capture.updateBatchLimit($0) }
         .alert("Clear these captures?", isPresented: $discard) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) { do { try capture.clearImported(); selected = nil } catch { capture.message = error.localizedDescription } }

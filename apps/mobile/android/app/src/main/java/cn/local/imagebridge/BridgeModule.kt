@@ -19,6 +19,7 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
     private val storage = SecureStore(context)
     private val discovery = Discovery(context)
     private val executor = Executors.newSingleThreadExecutor()
+    private val presenceExecutor = Executors.newFixedThreadPool(2)
     private var activityPromise: Promise? = null
     init {
         storage.write(storage.read())
@@ -57,6 +58,17 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
     @ReactMethod fun takePairing(promise: Promise) {val pending = SharedInbox.pairingUri; SharedInbox.pairingUri = null; promise.resolve(pending)}
     @ReactMethod fun discover(promise: Promise) {try {discovery.start(); promise.resolve(null)} catch (exception: Exception) {promise.reject("DISCOVERY", exception.message, exception)}}
     @ReactMethod fun stopDiscovery() {discovery.stop()}
+    @ReactMethod fun checkConnection(deviceId: String, promise: Promise) {
+        presenceExecutor.execute {
+            val connected = runCatching {
+                val devices = storage.read().getJSONArray("devices")
+                val device = (0 until devices.length()).map { devices.getJSONObject(it) }
+                    .firstOrNull { it.optString("deviceId") == deviceId }
+                device != null && PinnedClient(discovery.refresh(device)).checkConnection()
+            }.getOrDefault(false)
+            promise.resolve(connected)
+        }
+    }
     @ReactMethod fun selectDevice(id: String, promise: Promise) = work(promise) {
         val data = storage.read(); val devices = data.getJSONArray("devices")
         require((0 until devices.length()).any { devices.getJSONObject(it).optString("deviceId") == id }) { "设备不存在" }
@@ -158,5 +170,5 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
         result.put("phoneTemporaryFiles", File(context.cacheDir, "outbox").listFiles()?.count {it.isFile} ?: 0)
         result.put("clientElapsedMs", android.os.SystemClock.elapsedRealtime() - started).toString()
     }
-    override fun invalidate() {discovery.stop(); executor.shutdown(); super.invalidate()}
+    override fun invalidate() {discovery.stop(); executor.shutdown(); presenceExecutor.shutdownNow(); super.invalidate()}
 }

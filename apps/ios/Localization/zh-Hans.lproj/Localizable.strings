@@ -84,7 +84,12 @@
 "Pair a computer to send" = "配对电脑后即可发送";
 "Pair Computer" = "配对电脑";
 "Paired Computers" = "已配对电脑";
-"Paired with “%@”" = "已连接「%@」";
+"Paired with “%@”" = "已配对「%@」";
+"Checking connection…" = "正在检测连接…";
+"Connected" = "已连接";
+"Disconnected" = "未连接";
+"Screenshot limit" = "连续截屏张数";
+"Burst limit" = "连拍张数";
 "Pairing…" = "正在配对…";
 "Photo" = "照片";
 "Photos" = "相册";

@@ -12,6 +12,12 @@ final class TransportTests: XCTestCase {
         catch { XCTAssertFalse(error.localizedDescription.isEmpty) }
         let device = try await PinnedClient(invitation: invitation).pair(invitation, clientId: UUID().uuidString, name: "CommandV integration test")
         XCTAssertEqual(device.id, invitation.deviceId)
+        let online = await PinnedClient(device: device).checkConnection()
+        XCTAssertTrue(online)
+        let expired = PairedDevice(id: device.id, name: device.name, addresses: device.addresses, port: device.port,
+                                   fingerprint: device.fingerprint, token: "expired-pairing-token")
+        let rejected = await PinnedClient(device: expired).checkConnection()
+        XCTAssertFalse(rejected)
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }

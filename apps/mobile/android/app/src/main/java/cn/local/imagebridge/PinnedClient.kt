@@ -61,6 +61,28 @@ class PinnedClient(private val device: JSONObject) {
         }
         throw IllegalStateException("连接电脑失败，请检查电脑是否运行、两端网络和防火墙。${last?.localizedMessage ?: "没有可用地址"}", last)
     }
+    fun checkConnection(): Boolean {
+        val addresses = device.getJSONArray("addresses")
+        fun probe(address: String, route: String): Int {
+            val request = connection(address, route)
+            return try {
+                request.connectTimeout = 2000
+                request.readTimeout = 2000
+                request.useCaches = false
+                request.responseCode
+            } finally { request.disconnect() }
+        }
+        for (index in 0 until addresses.length()) {
+            val address = addresses.getString(index)
+            if (!privateAddress(address)) continue
+            try {
+                val status = probe(address, "/v1/presence")
+                if (status in 200..299) return true
+                if (status == 404 && probe(address, "/v1/capabilities") in 200..299) return true
+            } catch (_: java.io.IOException) { continue }
+        }
+        return false
+    }
     private fun send(address: String, route: String, json: JSONObject?, image: File?, mime: String?, requestId: String?, batch: List<Pair<File, String>>?): JSONObject {
         val connection = connection(address, route)
         try {

@@ -2,64 +2,122 @@ import SwiftUI
 
 let cameraAccent = Color(red: 217 / 255, green: 242 / 255, blue: 120 / 255)
 
-struct BatchLimitControl: View {
+struct ScreenLimitBar: View {
     @Binding var limit: Int
-    let count: Int
-    @State private var choosing = false
-
-    private let ticks = [1, 5, 10, 20, 50, CaptureBatch.maximum]
 
     var body: some View {
-        Button {
-            choosing = true
-        } label: {
-            Label("\(count)/\(CaptureBatch.limit(limit))", systemImage: "slider.horizontal.3")
-                .font(.footnote.monospacedDigit().weight(.semibold))
-                .padding(.horizontal, 12).frame(minHeight: 44)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Screenshot limit").font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(CaptureBatch.limit(limit).formatted()).monospacedDigit()
+            }
+            Slider(value: Binding(
+                get: { Double(CaptureBatch.limit(limit)) },
+                set: { limit = Int($0) }
+            ), in: 1...Double(CaptureBatch.maximum), step: 1) {
+                Text("Screenshot limit")
+            }
+            .accessibilityIdentifier("screenLimitSlider")
+            .accessibilityValue(Text(CaptureBatch.limit(limit).formatted()))
         }
-        .buttonStyle(.bordered)
-        .accessibilityLabel("Batch limit")
-        .accessibilityValue(Text("\(count)/\(CaptureBatch.limit(limit))"))
-        .sheet(isPresented: $choosing) {
-            NavigationView {
-                VStack(spacing: 12) {
-                    Text(CaptureBatch.limit(limit).formatted())
-                        .font(.system(size: 44, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(cameraAccent)
-                        .accessibilityHidden(true)
-                    Slider(value: sliderPosition, in: 0...Double(ticks.count - 1)) {
-                        Text("Batch limit")
-                    }.accessibilityValue(Text(CaptureBatch.limit(limit).formatted()))
-                    HStack(spacing: 0) {
-                        ForEach(ticks, id: \.self) { tick in
-                            Button {
-                                limit = tick
-                            } label: {
-                                Text(tick.formatted()).font(.caption.monospacedDigit())
-                                    .frame(maxWidth: .infinity, minHeight: 44)
-                                    .contentShape(Rectangle())
-                            }.buttonStyle(.plain)
-                        }
-                    }
-                    Text("Up to 100 MB per batch.").font(.footnote).foregroundStyle(.secondary)
-                    Spacer()
+        .padding(.horizontal, 24).padding(.vertical, 10)
+        .background(.regularMaterial)
+    }
+}
+
+struct BurstLimitDial: View {
+    @Binding var limit: Int
+    let count: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var expanded = false
+    @State private var dragStart: Int?
+    @State private var collapse: Task<Void, Never>?
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if expanded {
+                dial
+                    .frame(maxWidth: 320).frame(height: 98)
+                    .contentShape(Rectangle()).gesture(drag)
+                    .accessibilityHidden(true)
+            }
+            Button {
+                collapse?.cancel()
+                setExpanded(!expanded)
+            } label: {
+                Text("\(count)/\(CaptureBatch.limit(limit))")
+                    .font(.footnote.monospacedDigit().weight(.semibold))
+                    .padding(.horizontal, 13).padding(.vertical, 6)
+                    .background(Color.black.opacity(0.75), in: Capsule())
+                    .frame(minWidth: 60, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).foregroundColor(cameraAccent)
+            .simultaneousGesture(drag)
+            .accessibilityLabel("Burst limit")
+            .accessibilityIdentifier("burstLimitDial")
+            .accessibilityValue(Text("\(count)/\(CaptureBatch.limit(limit))"))
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: limit = CaptureBatch.limit(limit + 1)
+                case .decrement: limit = CaptureBatch.limit(limit - 1)
+                @unknown default: break
                 }
-                .padding(24).navigationTitle("Batch limit").navigationBarTitleDisplayMode(.inline)
-                .toolbar { Button("Done") { choosing = false } }
-            }.navigationViewStyle(.stack).preferredColorScheme(.dark).tint(cameraAccent)
+            }
+        }
+        .onDisappear { collapse?.cancel() }
+    }
+
+    private var dial: some View {
+        Canvas { context, size in
+            let value = CaptureBatch.limit(limit)
+            let radius = Double(size.width) * 0.53
+            let center = CGPoint(x: Double(size.width) / 2, y: radius + 4)
+            let circle = CGRect(x: Double(center.x) - radius, y: 4, width: radius * 2, height: radius * 2)
+            context.fill(Path(ellipseIn: circle), with: .color(.black.opacity(0.77)))
+            for offset in -16...16 where (1...CaptureBatch.maximum).contains(value + offset) {
+                let angle = Double(offset) * 0.053
+                let marked = (value + offset).isMultiple(of: 5) || offset == 0
+                func point(_ length: Double) -> CGPoint {
+                    CGPoint(x: Double(center.x) + sin(angle) * length, y: Double(center.y) - cos(angle) * length)
+                }
+                let tick = Path { path in
+                    path.move(to: point(radius - 5))
+                    path.addLine(to: point(radius - (marked ? 18 : 11)))
+                }
+                let color: Color = offset == 0 ? cameraAccent : .white.opacity(marked ? 0.8 : 0.35)
+                context.stroke(tick, with: .color(color), lineWidth: offset == 0 ? 2 : 1)
+                if marked {
+                    context.draw(Text((value + offset).formatted()).font(.caption2.monospacedDigit()).foregroundColor(color),
+                                 at: point(radius - 29))
+                }
+            }
+        }
+        .clipped()
+    }
+
+    private var drag: some Gesture {
+        DragGesture(minimumDistance: 7).onChanged { value in
+            if dragStart == nil {
+                collapse?.cancel()
+                dragStart = CaptureBatch.limit(limit)
+                setExpanded(true)
+            }
+            if let dragStart {
+                limit = CaptureBatch.limit(dragStart - Int((value.translation.width / 6).rounded()))
+            }
+        }.onEnded { _ in
+            dragStart = nil
+            collapse = Task {
+                do { try await Task.sleep(nanoseconds: 1_300_000_000) } catch { return }
+                setExpanded(false)
+            }
         }
     }
 
-    private var sliderPosition: Binding<Double> {
-        Binding {
-            let value = CaptureBatch.limit(limit)
-            guard let end = ticks.firstIndex(where: { $0 > value }) else { return Double(ticks.count - 1) }
-            return Double(end - 1) + Double(value - ticks[end - 1]) / Double(ticks[end] - ticks[end - 1])
-        } set: { position in
-            let start = min(Int(position), ticks.count - 2)
-            let value = Double(ticks[start]) + (position - Double(start)) * Double(ticks[start + 1] - ticks[start])
-            limit = CaptureBatch.limit(Int(value.rounded()))
-        }
+    private func setExpanded(_ value: Bool) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) { expanded = value }
     }
 }
 

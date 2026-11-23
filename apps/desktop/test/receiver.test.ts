@@ -40,6 +40,17 @@ test('配对、加密上传、剪贴板确认与恢复策略', async t => {
       assert.equal((await request('/v1/images', png, token, {...headers(), Origin: 'https://example.com'})).status, 403);
       assert.equal(copies, 0);
     });
+    await t.test('在线状态必须经过局域网认证，运行时到期，重启保留配对而不沿用状态', async () => {
+      const device = store.state.devices[0];
+      const restarted = new Receiver(store, async () => {}, () => {});
+      assert.equal(restarted.isConnected(device), false);
+      assert.equal((await request('/v1/presence', undefined, 'invalid')).status, 401);
+      assert.equal((await request('/v1/presence', undefined, token, {Origin: 'https://example.com'})).status, 403);
+      assert.deepEqual(await request('/v1/presence', undefined, token), {status: 200, body: {connected: true}});
+      assert.equal(server.isConnected(device, Date.now() + 15 * 60_000), true);
+      assert.equal(server.isConnected(device, Date.now() + 16 * 60_000), false);
+      assert.equal(copies, 0);
+    });
     await t.test('透明图片成功复制且重复请求不重复覆盖', async () => {
       const id = randomUUID(); const first = await request('/v1/images', png, token, headers(id));
       assert.equal(first.body.status, 'copied'); assert.equal(copies, 1);

@@ -85,7 +85,7 @@ func isPrivateAddress(_ address: String) -> Bool {
     return numbers[0] == 10 || (numbers[0] == 192 && numbers[1] == 168) || (numbers[0] == 172 && (16...31).contains(numbers[1]))
 }
 
-struct PairedDevice: Codable, Identifiable {
+struct PairedDevice: Codable, Identifiable, Equatable, Sendable {
     var id: String
     var name: String
     var addresses: [String]

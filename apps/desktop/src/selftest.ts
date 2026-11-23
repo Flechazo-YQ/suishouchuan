@@ -42,6 +42,11 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     const invitation = receiver.pairing();
     const paired = await request('/v1/pair', Buffer.from(JSON.stringify({code: invitation.code, clientId: randomUUID(), name: '本机验收'})));
     const token = String(paired.body.token);
+    const probe = await request('/v1/presence', undefined, token);
+    const rejectedProbe = await request('/v1/presence');
+    const pairedDevice = receiver.store.state.devices.find(device => device.tokenHash === sha256(token));
+    const connectionVerified = probe.status === 200 && probe.body.connected === true && rejectedProbe.status === 401 &&
+      !!pairedDevice && receiver.isConnected(pairedDevice) && !receiver.isConnected(pairedDevice, Date.now() + 16 * 60_000);
     const image = await sharp({create: {width: 720, height: 480, channels: 4, background: {r: 37, g: 99, b: 235, alpha: .65}}}).png().toBuffer();
     const id = randomUUID();
     const headers = {'Content-Type': 'image/png', 'X-Request-Id': id, 'X-Content-SHA256': sha256(image)};
@@ -76,10 +81,10 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     const batchFiles = folder ? fs.readdirSync(folder).sort() : clipboardEntries;
     const batchClipboard = (Boolean(windows) || Boolean(folder)) && capabilities.body.maxBatchImages === batchImages.length && batchResult.body.status === 'copied' &&
       batchFiles.length === batchImages.length && batchFiles.every((file, index) => path.basename(file) === `${batchId}-${String(index + 1).padStart(2, '0')}.png`);
-    const report = {pairing: paired.status === 201, transfer: result.body.status === 'copied', clipboard: {width: meta.width, height: meta.height, alpha: meta.hasAlpha},
+    const report = {pairing: paired.status === 201, connectionVerified, transfer: result.body.status === 'copied', clipboard: {width: meta.width, height: meta.height, alpha: meta.hasAlpha},
       duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, batchFileCount: batchFiles.length, batchClipboardMode: folder ? 'folder' : 'files', batchStatus: batchResult.body.status, batchError: batchResult.body.error, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
     const clipboardGuardPassed = windows ? staleWriteRejected : missingFileRejected;
-    if (!report.pairing || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !clipboardGuardPassed || meta.width !== 720) throw new Error(JSON.stringify(report));
+    if (!report.pairing || !connectionVerified || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !clipboardGuardPassed || meta.width !== 720) throw new Error(JSON.stringify(report));
     return report;
   } finally {agent.destroy(); if (saved.length) await clipboard.write(saved); else await clipboard.clear();}
 }

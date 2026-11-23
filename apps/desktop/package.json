@@ -1,7 +1,7 @@
 {
   "name": "imagebridge",
   "productName": "CtrlV",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "手机图片直达电脑剪贴板",
   "author": "ImageBridge",
   "private": true,

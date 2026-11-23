@@ -10,6 +10,11 @@ const Camera = requireNativeComponent<ViewProps & {active: boolean}>('ImageBridg
 const Video = requireNativeComponent<ViewProps & {path: string}>('ImageBridgeVideoView');
 function Screen() {
   const [state, setState] = useState<MobileState>({devices: [], defaultId: '', discovered: [], sharedError: ''});
+  const latestState = useRef(state);
+  const [connections, setConnections] = useState<Record<string, boolean>>({});
+  const probedRoutes = useRef(new Map<string, string>());
+  const presenceGeneration = useRef(0);
+  const applicationActive = useRef(true);
   const [shelf, setShelf] = useState<DraftShelf>({active: emptyDraft(), saved: []});
   const shelfRef = useRef(shelf);
   const {photo, photos, group, batchMode, reviewing, reviewIndex} = shelf.active;
@@ -44,11 +49,33 @@ function Screen() {
   const reviewPhoto = reviewing ? photos[Math.min(reviewIndex, photos.length - 1)] : undefined;
   const modeLocked = busy || recording || !!photo || photos.length > 0 || devices || scanning || !foreground;
   const modeMotion = useCaptureModeMotion(batchMode, modeLocked, next => {setBatchMode(next); setError(''); setNotice('');});
+  function connectionText(id: string) {
+    return connections[id] === undefined ? '正在检测连接…' : connections[id] ? '已连接' : '未连接';
+  }
+  function checkConnections(latest: MobileState, periodic = false) {
+    if (!applicationActive.current) return;
+    const generation = presenceGeneration.current;
+    const routes = probedRoutes.current;
+    for (const device of latest.devices) {
+      const discovered = latest.discovered.find(found => found.deviceId === device.deviceId);
+      const endpoint = discovered ?? device;
+      const route = `${Boolean(discovered)}/${endpoint.port}/${endpoint.addresses.join(',')}`;
+      if (!periodic && routes.get(device.deviceId) === route) continue;
+      routes.set(device.deviceId, route);
+      void bridge.checkConnection(device.deviceId).catch(() => false).then(connected => {
+        if (generation !== presenceGeneration.current || routes.get(device.deviceId) !== route) return;
+        setConnections(previous => previous[device.deviceId] === connected ? previous : {...previous, [device.deviceId]: connected});
+      });
+    }
+    for (const id of routes.keys()) {
+      if (!latest.devices.some(device => device.deviceId === id)) routes.delete(id);
+    }
+  }
   async function refresh() {
     if (refreshing.current) return;
     refreshing.current = true;
     try {
-      const latest = await readState(); setState(latest);
+      const latest = await readState(); latestState.current = latest; setState(latest); checkConnections(latest);
       const link = await bridge.takePairing(); if (link) confirmPair(link);
       if (working.current) return;
       if (!waiting.current) {
@@ -68,9 +95,13 @@ function Screen() {
     void PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA).then(setAllowed);
     void bridge.discover().catch(() => {});
     const interval = setInterval(() => {if (AppState.currentState === 'active') void refresh();}, 1500);
+    const presenceInterval = setInterval(() => checkConnections(latestState.current, true), 15 * 60_000);
     const activity = AppState.addEventListener('change', value => {
+      applicationActive.current = value === 'active';
+      presenceGeneration.current++;
       setForeground(value === 'active');
       if (value === 'active') {
+        probedRoutes.current.clear(); setConnections({});
         void refresh(); void PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA).then(setAllowed);
         void bridge.discover().catch(() => {});
       } else {bridge.stopRecording(); bridge.stopDiscovery();}
@@ -78,7 +109,7 @@ function Screen() {
     const camera = DeviceEventEmitter.addListener('ImageBridgeCamera', (value: {ready: boolean; error: string}) => {
       setReady(value.ready); if (value.error) setError(value.error);
     });
-    return () => {clearInterval(interval); activity.remove(); camera.remove(); bridge.stopRecording(); bridge.stopDiscovery();};
+    return () => {presenceGeneration.current++; clearInterval(interval); clearInterval(presenceInterval); activity.remove(); camera.remove(); bridge.stopRecording(); bridge.stopDiscovery();};
   }, []);
   useEffect(() => {
     if (!recording) return;
@@ -179,7 +210,7 @@ function Screen() {
   return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/>
     <View style={s.top}>
       {photo ? <Pressable onPress={retake} disabled={busy} style={s.topAction} accessibilityRole="button" accessibilityLabel="重新拍摄"><Text style={s.cross}>×</Text></Pressable> :
-        <Pressable disabled={busy} onPress={() => setDevices(true)} style={s.deviceLabel} accessibilityRole="button"><View style={[s.dot, target && s.pairedDot]}/><View style={s.deviceText}><Text style={s.deviceName} numberOfLines={1}>{target?.name || '未配置电脑'}</Text><Text style={s.deviceIp}>{target?.addresses[0] || '轻触连接电脑'}</Text></View></Pressable>}
+        <Pressable disabled={busy} onPress={() => setDevices(true)} style={s.deviceLabel} accessibilityRole="button"><View style={[s.dot, target && connections[target.deviceId] && s.pairedDot]}/><View style={s.deviceText}><Text style={s.deviceName} numberOfLines={1}>{target?.name || '未配置电脑'}</Text><Text style={s.deviceIp}>{target ? connectionText(target.deviceId) : '轻触连接电脑'}</Text></View></Pressable>}
       {photos.length > 0 ? <Pressable disabled={busy} onPress={confirmGroup} style={[s.sendGroup, busy && {opacity: .5}]} accessibilityRole="button" accessibilityLabel={reviewing ? '确认并发送 ' + photos.length + ' 张图片' : '查看 ' + photos.length + ' 张图片'} accessibilityState={{disabled: busy, busy}}><Text style={s.sendGroupText}>{busy ? '处理中…' : reviewing ? '确认并发送' : '查看 ' + photos.length + ' 张'}</Text></Pressable> : photo ? <Pressable onPress={confirmSend} disabled={busy} style={s.topAction} accessibilityRole="button" accessibilityLabel="确认上传"><Text style={s.check}>✓</Text></Pressable> :
         <Pressable disabled={busy} onPress={() => setDevices(true)} style={s.topAction} accessibilityRole="button" accessibilityLabel="扫码配对电脑"><View style={s.scanIcon}><View style={s.scanLine}/></View></Pressable>}
     </View>
@@ -209,7 +240,7 @@ function Screen() {
       {photo && <View style={s.previewMeta}><Text style={s.metaTitle}>{video ? '视频' : '照片'}</Text><Text style={s.metaDetail}>{photo.width} × {photo.height} · {(photo.bytes / 1024 / 1024).toFixed(1)} MB{photo.durationMs ? ' · ' + (photo.durationMs / 1000).toFixed(1) + ' 秒' : ''}</Text></View>}
       <Text style={s.footer}>{photo || reviewPhoto ? 'CtrlC · 仅局域网传输' : photos.length > 0 ? '可切换相册或截屏 · 这组照片会保留' : '左滑连拍 · 右滑拍摄'}</Text>
     </View>
-    <Modal visible={devices} transparent animationType="slide" onRequestClose={() => setDevices(false)}><View style={s.backdrop}><SafeAreaView style={s.sheet}><View style={s.sheetTop}><Text style={s.sheetTitle}>连接电脑</Text><Pressable onPress={() => setDevices(false)} style={s.topAction} accessibilityLabel="关闭设备面板"><Text style={s.cross}>×</Text></Pressable></View><Text style={s.sheetDescription}>电脑打开CtrlV，点击「配对手机」。手机扫描二维码后，确认电脑名称。</Text><ScrollView style={s.deviceList}>{state.devices.map(device => <View key={device.deviceId} style={s.deviceRow}><Pressable style={s.deviceChoice} onPress={() => void run(async () => {await bridge.selectDevice(device.deviceId); setDevices(false);})}><Text style={s.deviceName}>{device.name}{device.deviceId === state.defaultId ? '  ✓' : ''}</Text><Text style={s.deviceIp}>{device.addresses.join(' · ')}</Text></Pressable><Pressable style={s.removeButton} onPress={() => Alert.alert('移除电脑', '移除「' + device.name + '」？', [{text: '取消'}, {text: '移除', style: 'destructive', onPress: () => void run(async () => {await bridge.removeDevice(device.deviceId);})}])}><Text style={s.secondaryText}>移除</Text></Pressable></View>)}</ScrollView><Pressable style={s.pairButton} disabled={busy} onPress={() => void run(scan)}><Text style={s.pairText}>扫描配对二维码</Text></Pressable><Pressable style={s.settingsButton} onPress={() => setManual(!manual)}><Text style={s.secondaryText}>手动输入配对内容</Text></Pressable>{manual && <><TextInput style={s.input} value={uri} onChangeText={setUri} autoCapitalize="none" multiline placeholder="imagebridge://pair?data=…" placeholderTextColor="#777"/><Pressable style={s.pairButton} onPress={() => confirmPair(uri.trim())}><Text style={s.pairText}>确认配对</Text></Pressable></>}{!!error && <Text style={s.sheetError}>{error}</Text>}</SafeAreaView></View></Modal>
+    <Modal visible={devices} transparent animationType="slide" onRequestClose={() => setDevices(false)}><View style={s.backdrop}><SafeAreaView style={s.sheet}><View style={s.sheetTop}><Text style={s.sheetTitle}>连接电脑</Text><Pressable onPress={() => setDevices(false)} style={s.topAction} accessibilityLabel="关闭设备面板"><Text style={s.cross}>×</Text></Pressable></View><Text style={s.sheetDescription}>电脑打开CtrlV，点击「配对手机」。手机扫描二维码后，确认电脑名称。</Text><ScrollView style={s.deviceList}>{state.devices.map(device => <View key={device.deviceId} style={s.deviceRow}><Pressable style={s.deviceChoice} onPress={() => void run(async () => {await bridge.selectDevice(device.deviceId); setDevices(false);})}><Text style={s.deviceName}>{device.name}{device.deviceId === state.defaultId ? '  ✓' : ''}</Text><Text style={s.deviceIp}>{connectionText(device.deviceId)}</Text></Pressable><Pressable style={s.removeButton} onPress={() => Alert.alert('移除电脑', '移除「' + device.name + '」？', [{text: '取消'}, {text: '移除', style: 'destructive', onPress: () => void run(async () => {await bridge.removeDevice(device.deviceId);})}])}><Text style={s.secondaryText}>移除</Text></Pressable></View>)}</ScrollView><Pressable style={s.pairButton} disabled={busy} onPress={() => void run(scan)}><Text style={s.pairText}>扫描配对二维码</Text></Pressable><Pressable style={s.settingsButton} onPress={() => setManual(!manual)}><Text style={s.secondaryText}>手动输入配对内容</Text></Pressable>{manual && <><TextInput style={s.input} value={uri} onChangeText={setUri} autoCapitalize="none" multiline placeholder="imagebridge://pair?data=…" placeholderTextColor="#777"/><Pressable style={s.pairButton} onPress={() => confirmPair(uri.trim())}><Text style={s.pairText}>确认配对</Text></Pressable></>}{!!error && <Text style={s.sheetError}>{error}</Text>}</SafeAreaView></View></Modal>
   </SafeAreaView>;
 }
 export default function App() {return <SafeAreaProvider><Screen/></SafeAreaProvider>;}

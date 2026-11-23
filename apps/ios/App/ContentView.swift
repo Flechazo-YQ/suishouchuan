@@ -8,6 +8,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("captureBatchLimit") private var captureBatchLimit = CaptureBatch.defaultLimit
+    @AppStorage("screenCaptureBatchLimit") private var screenCaptureBatchLimit = 0
     @State private var burst = false
     @State private var reviewing = false
     @State private var reviewIndex = 0
@@ -52,7 +53,7 @@ struct ContentView: View {
             NavigationView { QRScanner { queuePairing($0) }.navigationTitle("Scan Computer QR Code").toolbar { Button("Cancel") { showScanner = false } } }
         }
         .sheet(isPresented: $showLibrary) {
-            let selectionLimit = libraryKind == .images ? CaptureBatch.limit(captureBatchLimit) : CaptureBatch.defaultLimit
+            let selectionLimit = libraryKind == .images ? CaptureBatch.limit(screenCaptureBatchLimit) : CaptureBatch.defaultLimit
             LibraryPicker(limit: selectionLimit, kind: libraryKind) { providers in
                 showLibrary = false
                 guard !providers.isEmpty else { return }
@@ -89,12 +90,13 @@ struct ContentView: View {
         }
         .onAppear {
             if #available(iOS 27.0, *) { ScreenCaptureSession.shared.dismissOrphanedActivities() }
+            if screenCaptureBatchLimit == 0 { screenCaptureBatchLimit = CaptureBatch.limit(captureBatchLimit) }
             model.switchCapture(burst: false)
             camera.captured = { file, video in importCapture(file, video: video) }
-            model.startDiscovery()
+            if scenePhase == .active { model.startConnectionMonitoring(); model.startDiscovery() }
             if !testCamera { camera.start() }
         }
-        .onDisappear { camera.stop(); camera.captured = nil; model.stopDiscovery() }
+        .onDisappear { camera.stop(); camera.captured = nil; model.stopDiscovery(); model.stopConnectionMonitoring() }
         .onChange(of: burst) { value in model.switchCapture(burst: value) }
         .onChange(of: cameraVisible) { value in
             if value { camera.start() } else { camera.stop() }
@@ -102,9 +104,10 @@ struct ContentView: View {
         .onChange(of: camera.error) { value in if !value.isEmpty { model.report(BridgeError.message(value)) } }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
-                do { try model.reload(); model.startDiscovery() } catch { model.report(error) }
+                do { try model.reload() } catch { model.report(error) }
+                model.startConnectionMonitoring(); model.startDiscovery()
                 if cameraVisible { camera.start() }
-            } else { camera.stop(); model.stopDiscovery() }
+            } else { camera.stop(); model.stopDiscovery(); model.stopConnectionMonitoring() }
         }
     }
 
@@ -128,11 +131,12 @@ struct ContentView: View {
             } else {
                 Button { showDevices = true } label: {
                     HStack(spacing: 10) {
-                        Circle().fill(model.target == nil ? Color.gray : cameraAccent).frame(width: 6, height: 6)
+                        Circle().fill(model.target.map { model.connection(for: $0.id) } == .connected ? cameraAccent : .gray)
+                            .frame(width: 6, height: 6)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(model.target?.name ?? String(localized: "No computer paired"))
                                 .font(.subheadline.weight(.medium)).lineLimit(1)
-                            Text(model.target?.addresses.first ?? String(localized: "Scan a QR code to pair"))
+                            Text(model.target.map { model.connection(for: $0.id).title } ?? String(localized: "Scan a QR code to pair"))
                                 .font(.caption).foregroundColor(.gray).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)
@@ -194,6 +198,11 @@ struct ContentView: View {
                     guard !reviewing, !locked, abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { burst = value.translation.width < 0 }
                 }, including: reviewing ? .subviews : .all)
+                .overlay(alignment: .bottom) {
+                    if burst && !reviewing && !locked && model.message.isEmpty && (camera.authorized || testCamera) {
+                        BurstLimitDial(limit: $captureBatchLimit, count: model.items.count)
+                    }
+                }
         }
     }
     private var permissionView: some View {
@@ -208,9 +217,7 @@ struct ContentView: View {
     private var captureFooter: some View {
         VStack(spacing: 9) {
             CaptureModeTabs(burst: $burst, locked: locked)
-            if burst {
-                BatchLimitControl(limit: $captureBatchLimit, count: model.items.count).disabled(locked)
-            } else {
+            if !burst {
                 Text(camera.recording ? "Release to finish. Up to 30 seconds." : "Tap for a photo. Hold for video.")
                     .font(.footnote).foregroundColor(.gray)
             }
@@ -291,7 +298,18 @@ struct ContentView: View {
         NavigationView {
             List {
                 Section("Paired Computers") {
-                    ForEach(model.devices) { device in Button { model.select(device.id); showDevices = false } label: { HStack { Text(device.name); Spacer(); if device.id == model.selectedId { Image(systemName: "checkmark") } } } }
+                    ForEach(model.devices) { device in
+                        Button { model.select(device.id); showDevices = false } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(device.name)
+                                    Text(model.connection(for: device.id).title).font(.caption).foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                if device.id == model.selectedId { Image(systemName: "checkmark") }
+                            }
+                        }
+                    }
                         .onDelete { offsets in
                             let ids = offsets.map { model.devices[$0].id }
                             ids.forEach(model.removeDevice)
@@ -319,7 +337,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if #available(iOS 27.0, *) {
-                        NativeScreenTools { files in
+                        NativeScreenTools(limit: $screenCaptureBatchLimit) { files in
                             try await model.importScreenFiles(files)
                             showScreenTools = false
                             syncDraftPresentation(review: true)
@@ -327,7 +345,6 @@ struct ContentView: View {
                     } else {
                         Label("iPhone Screenshots", systemImage: "rectangle.dashed").font(.title3.weight(.semibold))
                         Text("Take a screenshot on your iPhone, then tap Share → CommandC → Confirm Send. To send several at once, select them below.").foregroundColor(.secondary)
-                        BatchLimitControl(limit: $captureBatchLimit, count: 0)
                         Button("Choose Screenshots") { openScreenLibrary(.images) }.buttonStyle(.borderedProminent).frame(minHeight: 44)
                         Divider()
                         Label("iPhone Screen Recordings", systemImage: "record.circle").font(.title3.weight(.semibold))
@@ -336,7 +353,11 @@ struct ContentView: View {
                         Text("Selected items go to the current computer. Your camera batch stays in CommandC.").font(.footnote).foregroundColor(.secondary)
                     }
                 }.padding(24)
-            }.navigationTitle("Screen Capture").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { showScreenTools = false } }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                ScreenLimitBar(limit: $screenCaptureBatchLimit)
+            }
+            .navigationTitle("Screen Capture").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { showScreenTools = false } }
         }.preferredColorScheme(.dark)
     }
     private func openScreenLibrary(_ kind: LibraryPicker.Kind) { libraryKind = kind; libraryPending = true; showScreenTools = false }

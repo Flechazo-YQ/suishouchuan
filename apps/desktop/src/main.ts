@@ -1,4 +1,4 @@
-import {app, BrowserWindow, ClipboardItem, clipboard, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, shell, Tray} from 'electron';
+import {app, BrowserWindow, ClipboardItem, clipboard, dialog, ipcMain, Menu, nativeImage, powerMonitor, safeStorage, screen, shell, Tray} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomBytes} from 'node:crypto';
@@ -34,6 +34,7 @@ let warning: string | undefined;
 let bonjour: Bonjour | undefined;
 let downloadUrl: string | undefined;
 let downloadServer: http.Server | undefined;
+let lanAddresses = '';
 const imageData = (filename: string) => 'data:image/png;base64,' + fs.readFileSync(filename).toString('base64');
 
 async function copyImage(filename: string) {
@@ -84,14 +85,24 @@ function secure(view: BrowserWindow) {
   view.webContents.session.setPermissionRequestHandler((_web, _permission, callback) => callback(false));
 }
 function showWindow() {
+  refreshConnectionStatus();
   if (!window) {
     window = new BrowserWindow({...options(), width: 1060, height: 760, minWidth: 780, minHeight: 600, title: appName});
     window.on('page-title-updated', event => event.preventDefault());
+    window.on('focus', refreshConnectionStatus);
     secure(window);
     window.on('close', event => {if (!quitting) {event.preventDefault(); window?.hide();}});
     void window.loadFile(path.join(__dirname, 'renderer/index.html'));
     window.once('ready-to-show', () => window?.showInactive());
   } else {window.show(); window.focus();}
+}
+function refreshConnectionStatus() {
+  if (!receiver) return;
+  const next = addresses().sort().join(',');
+  const networkChanged = lanAddresses !== next;
+  lanAddresses = next;
+  receiver.refreshPresence(networkChanged);
+  if (networkChanged) changed();
 }
 function changed(item?: Transfer) {
   window?.webContents.send('changed');
@@ -109,7 +120,7 @@ function changed(item?: Transfer) {
 function state(): DesktopState {
   return {isMac, version: app.getVersion(), name: store.state.name, deviceId: store.state.deviceId, addresses: addresses(), port: receiver.port,
     fingerprint: store.tls.fingerprint, settings: store.state.settings, warning: warning || store.cleanupWarning, downloadUrl,
-    devices: store.state.devices.map(({tokenHash: _token, ...device}) => device),
+    devices: store.state.devices.map(device => ({clientId: device.clientId, name: device.name, pairedAt: device.pairedAt, connected: receiver.isConnected(device)})),
     transfers: [...store.state.transfers].reverse().filter(item => !item.cacheExpired).map(item => ({...item, thumbnail: item.thumbnailPath && fs.existsSync(item.thumbnailPath) ? imageData(item.thumbnailPath) : undefined}))};
 }
 function getTransfer(id: unknown) {
@@ -145,7 +156,7 @@ function registerIpc() {
       }
       store.save(); updateTray(); changed();
     },
-    revoke: (id: unknown) => {store.state.devices = store.state.devices.filter(device => device.clientId !== id); store.save(); changed();},
+    revoke: (id: unknown) => {store.state.devices = store.state.devices.filter(device => device.clientId !== id); store.save(); receiver.refreshPresence(); changed();},
     copy: async (id: unknown) => {
       const item = getTransfer(id);
       const release = store.pin(item.requestId);
@@ -208,6 +219,9 @@ async function start() {
   if (!isMac && app.isPackaged && !testDirectory && !testOutput) updateLoginItem(store.state.settings.launchAtLogin);
   receiver = new Receiver(store, copyImage, changed, copyFiles);
   try {await receiver.start(testOutput ? 0 : 43821);} catch (error) {if (testOutput) throw error; await receiver.start(0); warning = '默认端口被占用，已使用备用端口；请刷新二维码。';}
+  lanAddresses = addresses().sort().join(',');
+  powerMonitor.on('resume', refreshConnectionStatus);
+  setInterval(refreshConnectionStatus, 15 * 60_000).unref();
   if (testOutput) {
     const {runSelfTest} = await import('./selftest');
     const report = await runSelfTest(receiver, copyImage);

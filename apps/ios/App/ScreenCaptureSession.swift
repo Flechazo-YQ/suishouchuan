@@ -60,6 +60,7 @@ import ActivityKit
     func requestStopConfirmation() async {}
     func confirmStop() async {}
     func dismissOrphanedActivities() {}
+    func updateBatchLimit(_ limit: Int) { batchLimit = CaptureBatch.limit(limit) }
     func stop() async {
         if finishing { finishSaving(String(localized: "Recording save canceled.")) }
         else { active = false }
@@ -109,6 +110,13 @@ import ActivityKit
     }
     var isVideo: Bool { files.first?.pathExtension == "mp4" }
     private var canCapture: Bool { active && !recording && !finishing && !isVideo && files.count < batchLimit }
+
+    func updateBatchLimit(_ limit: Int) {
+        let next = max(CaptureBatch.limit(limit), files.count + (pendingShot ? 1 : 0))
+        guard batchLimit != next else { return }
+        batchLimit = next
+        Task { await updateActivity() }
+    }
 
     override init() {
         super.init()

@@ -14,6 +14,19 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         fingerprint = invitation.fingerprint; addresses = invitation.addresses; port = invitation.port; token = nil
     }
 
+    func checkConnection() async -> Bool {
+        do {
+            let result = try await withMediaDeadline(seconds: 8, timeout: URLError(.timedOut)) {
+                do {
+                    return try await self.request(route: "/v1/presence", method: "GET", timeout: 3)
+                } catch BridgeError.receiver(status: 404, message: _) {
+                    return try await self.request(route: "/v1/capabilities", method: "GET", timeout: 3)
+                }
+            }
+            return !result.isEmpty
+        } catch { return false }
+    }
+
     func pair(_ invitation: Invitation, clientId: String, name: String) async throws -> PairedDevice {
         struct Body: Encodable { let code: String; let clientId: String; let name: String }
         struct Response: Decodable { let deviceId: String; let name: String; let token: String }
@@ -51,9 +64,9 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         return try JSONDecoder().decode(TransferResult.self, from: data)
     }
 
-    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil) async throws -> Data {
+    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil, timeout: TimeInterval = 30) async throws -> Data {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = 150
         config.urlCache = nil
         config.httpCookieStorage = nil

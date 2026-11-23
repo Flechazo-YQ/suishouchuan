@@ -146,15 +146,18 @@ final class LaunchTests: XCTestCase {
         attach(app, "CommandC English camera")
 
         app.buttons["Burst"].tap()
-        let batchLimit = app.buttons["Batch limit"]
+        let batchLimit = app.descendants(matching: .any)["burstLimitDial"].firstMatch
         XCTAssertTrue(batchLimit.isHittable)
         batchLimit.tap()
-        let maxLimit = app.buttons["99"]
-        XCTAssertTrue(maxLimit.waitForExistence(timeout: 5))
-        maxLimit.tap()
+        let priorLimit = batchLimit.value as? String
+        let dialCenter = batchLimit.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let dragDistance: CGFloat = priorLimit == "0/99" ? 92 : -92
+        dialCenter.press(forDuration: 0.1, thenDragTo: dialCenter.withOffset(CGVector(dx: dragDistance, dy: 0)))
+        XCTAssertNotEqual(batchLimit.value as? String, priorLimit)
+        let newLimit = batchLimit.value as? String
+        XCTAssertTrue(newLimit?.hasPrefix("0/") == true)
         attach(app, "CommandC English batch limit")
-        app.buttons["Done"].tap()
-        XCTAssertEqual(batchLimit.value as? String, "0/99")
+        XCTAssertFalse(app.navigationBars["Batch limit"].exists)
         let shutter = app.buttons["Burst shutter"]
         XCTAssertTrue(shutter.isHittable)
         XCTAssertEqual(shutter.frame.midX, app.frame.midX, accuracy: 1)
@@ -177,6 +180,17 @@ final class LaunchTests: XCTestCase {
         app.buttons["Done"].tap()
 
         screen.tap()
+        let screenshotLimit = app.sliders["screenLimitSlider"]
+        XCTAssertTrue(screenshotLimit.waitForExistence(timeout: 3))
+        screenshotLimit.adjust(toNormalizedSliderPosition: 0.50)
+        let savedScreenshotLimit = screenshotLimit.value as? String
+        XCTAssertNotNil(savedScreenshotLimit)
+        app.buttons["Done"].tap()
+        XCTAssertEqual(batchLimit.value as? String, newLimit?.replacingOccurrences(of: "0/", with: "1/"))
+        screen.tap()
+        XCTAssertTrue(screenshotLimit.waitForExistence(timeout: 3))
+        XCTAssertEqual(screenshotLimit.value as? String, savedScreenshotLimit)
+        attach(app, "CommandC inline screenshot limit")
         if #available(iOS 27.0, *) {
             XCTAssertTrue(app.buttons["Start Screen Capture"].waitForExistence(timeout: 3))
             let hold = app.descendants(matching: .any)["screenCaptureGuideStep2"].firstMatch
