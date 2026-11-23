@@ -70,11 +70,14 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     const batchId = randomUUID();
     const batchResult = await request('/v1/batches', Buffer.concat([batchPrefix, batchManifest, ...batchImages]), token,
       {'Content-Type': 'application/x-imagebridge-batch', 'X-Request-Id': batchId, 'X-Content-SHA256': sha256(batchManifest)});
-    const batchFiles = await readFiles();
-    const batchClipboard = capabilities.body.maxBatchImages === batchImages.length && batchResult.body.status === 'copied' &&
+    const clipboardEntries = await readFiles();
+    const folder = !windows && clipboardEntries.length === 1 && path.basename(clipboardEntries[0]) === 'Batch-' + batchId
+      ? clipboardEntries[0] : undefined;
+    const batchFiles = folder ? fs.readdirSync(folder).sort() : clipboardEntries;
+    const batchClipboard = (Boolean(windows) || Boolean(folder)) && capabilities.body.maxBatchImages === batchImages.length && batchResult.body.status === 'copied' &&
       batchFiles.length === batchImages.length && batchFiles.every((file, index) => path.basename(file) === `${batchId}-${String(index + 1).padStart(2, '0')}.png`);
     const report = {pairing: paired.status === 201, transfer: result.body.status === 'copied', clipboard: {width: meta.width, height: meta.height, alpha: meta.hasAlpha},
-      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, batchFileCount: batchFiles.length, batchStatus: batchResult.body.status, batchError: batchResult.body.error, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
+      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, batchFileCount: batchFiles.length, batchClipboardMode: folder ? 'folder' : 'files', batchStatus: batchResult.body.status, batchError: batchResult.body.error, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
     const clipboardGuardPassed = windows ? staleWriteRejected : missingFileRejected;
     if (!report.pairing || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !clipboardGuardPassed || meta.width !== 720) throw new Error(JSON.stringify(report));
     return report;

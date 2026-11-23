@@ -55,6 +55,14 @@ async function copyImage(filename: string) {
 }
 async function copyFiles(filenames: string[]) {
   if (!filenames.length || filenames.length > MAX_BATCH_IMAGES) throw new Error('图集数量无效');
+  if (isMac && filenames.length > 10) {
+    const folder = path.dirname(filenames[0]);
+    if (path.dirname(folder) !== store.cache || !filenames.every(file => path.dirname(file) === folder)) {
+      throw new Error('找不到完整的图集文件夹');
+    }
+    for (const file of filenames) await fs.promises.access(file);
+    return copyMacFiles([folder]);
+  }
   if (isMac) return copyMacFiles(filenames);
   const {clipboardSequence, verifyClipboardFiles} = await import('./windowsClipboard');
   for (const file of filenames) await fs.promises.access(file);

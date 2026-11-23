@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import type {IncomingMessage} from 'node:http';
 import sharp from 'sharp';
-import {MAX_BYTES, MAX_CACHE_BYTES, MAX_PIXELS, sha256} from './store';
+import {batchDirectory, MAX_BYTES, MAX_CACHE_BYTES, MAX_PIXELS, sha256} from './store';
 import type {BatchImage} from './types';
 
 interface Entry {bytes: number; mime: 'image/png' | 'image/jpeg'; sha256: string}
@@ -53,10 +53,13 @@ export async function receiveBatch(request: IncomingMessage, directory: string, 
   const outputs: string[] = [];
   const images: BatchImage[] = [];
   let cachedBytes = 0;
+  const groupDirectory = process.platform === 'darwin' && entries.length > 10 ? batchDirectory(directory, id) : undefined;
   try {
+    if (groupDirectory) await fs.mkdir(groupDirectory, {recursive: true});
     for (const [index, entry] of entries.entries()) {
-      const stem = path.join(directory, `${id}-${String(index + 1).padStart(2, '0')}`);
-      const partial = stem + '.part'; outputs.push(partial);
+      const filename = id + '-' + String(index + 1).padStart(2, '0');
+      const stem = path.join(groupDirectory ?? directory, filename);
+      const partial = path.join(directory, filename + '.part'); outputs.push(partial);
       const file = await fs.open(partial, 'w');
       const hash = createHash('sha256');
       try {
@@ -68,7 +71,7 @@ export async function receiveBatch(request: IncomingMessage, directory: string, 
       const format = entry.mime === 'image/jpeg' ? 'jpeg' : 'png';
       if (metadata.format !== format || (metadata.pages ?? 1) !== 1) throw new Error('图集仅支持静态 PNG 和 JPEG');
       const imagePath = stem + (format === 'jpeg' ? '.jpg' : '.png');
-      const thumbnailPath = stem + '-thumb.png'; outputs.push(imagePath, thumbnailPath);
+      const thumbnailPath = path.join(directory, filename + '-thumb.png'); outputs.push(imagePath, thumbnailPath);
       const pipeline = sharp(partial, {limitInputPixels: MAX_PIXELS}).rotate().toColourspace('srgb');
       const result = await (format === 'jpeg' ? pipeline.jpeg({quality: 95}) : pipeline.png()).toFile(imagePath);
       await sharp(imagePath).resize({width: 380, height: 260, fit: 'inside', withoutEnlargement: true}).png().toFile(thumbnailPath);
@@ -81,6 +84,7 @@ export async function receiveBatch(request: IncomingMessage, directory: string, 
     return {images, bytes, cachedBytes};
   } catch (error) {
     await Promise.allSettled(outputs.map(file => fs.rm(file, {force: true, maxRetries: 3, retryDelay: 50})));
+    if (groupDirectory) await fs.rmdir(groupDirectory).catch(() => {});
     throw error;
   }
 }

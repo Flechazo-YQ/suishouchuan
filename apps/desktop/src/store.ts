@@ -13,6 +13,8 @@ export const sha256 = (data: string | Buffer) => createHash('sha256').update(dat
 export const MAX_BYTES = 32 * 1024 * 1024;
 export const MAX_PIXELS = 64_000_000;
 export const MAX_CACHE_BYTES = 100_000_000;
+const batchName = /^Batch-[a-f0-9-]{36}$/i;
+export const batchDirectory = (cache: string, id: string) => path.join(cache, 'Batch-' + id);
 export class Store {
   readonly directory: string;
   readonly cache: string;
@@ -22,6 +24,7 @@ export class Store {
   private evicting = new Set<string>();
   private cleanup: Promise<void> = Promise.resolve();
   private orphanedFiles = new Set<string>();
+  private orphanedBatches = new Set<string>();
   cleanupWarning?: string;
   constructor(directory: string, codec: SecretCodec) {
     this.directory = directory;
@@ -55,9 +58,15 @@ export class Store {
       transfer.cachedBytes = this.files(transfer).reduce((sum, file) => sum + (fs.existsSync(file) ? fs.statSync(file).size : 0), 0);
     }
     const referenced = new Set(this.state.transfers.flatMap(item => this.files(item)));
-    for (const name of fs.readdirSync(this.cache)) {
-      const file = path.join(this.cache, name);
-      if (!referenced.has(file) && /\.(png|jpg|mp4|part)$/.test(name)) this.orphanedFiles.add(file);
+    for (const entry of fs.readdirSync(this.cache, {withFileTypes: true})) {
+      const file = path.join(this.cache, entry.name);
+      if (entry.isDirectory() && batchName.test(entry.name)) {
+        const children = fs.readdirSync(file, {withFileTypes: true}).filter(child => !child.isDirectory()).map(child => path.join(file, child.name));
+        for (const child of children) if (!referenced.has(child)) this.orphanedFiles.add(child);
+        if (!children.some(child => referenced.has(child))) this.orphanedBatches.add(file);
+      } else if (!referenced.has(file) && /\.(png|jpg|mp4|part)$/.test(entry.name) && !entry.isDirectory()) {
+        this.orphanedFiles.add(file);
+      }
     }
     this.save();
   }
@@ -67,7 +76,14 @@ export class Store {
     fs.renameSync(target + '.tmp', target);
   }
   private files(item: Transfer) {
-    return [...new Set([item.imagePath, item.thumbnailPath, ...(item.images ?? []).flatMap(image => [image.imagePath, image.thumbnailPath])])].filter((file): file is string => !!file && path.dirname(file) === this.cache);
+    const group = batchDirectory(this.cache, item.requestId);
+    const validGroup = path.dirname(group) === this.cache && batchName.test(path.basename(group));
+    const files = [item.imagePath, item.thumbnailPath, ...(item.images ?? []).flatMap(image => [image.imagePath, image.thumbnailPath])];
+    return [...new Set(files)].filter((file): file is string => {
+      if (!file) return false;
+      const directory = path.dirname(file);
+      return directory === this.cache || (validGroup && directory === group);
+    });
   }
   pin(id: string) {
     if (this.evicting.has(id)) throw new Error('素材缓存已被清理');
@@ -84,13 +100,17 @@ export class Store {
     item.cachedBytes = bytes; item.cacheExpired = false;
   }
   async discard(item: Transfer) {
-    for (const file of this.files(item)) await fs.promises.rm(file, {force: true, maxRetries: 2, retryDelay: 50});
+    const files = this.files(item);
+    for (const file of files) await fs.promises.rm(file, {force: true, maxRetries: 2, retryDelay: 50});
+    const group = batchDirectory(this.cache, item.requestId);
+    if (files.some(file => path.dirname(file) === group)) await fs.promises.rmdir(group).catch(() => {});
     item.imagePath = undefined; item.thumbnailPath = undefined; item.images = undefined; item.cachedBytes = 0; item.cacheExpired = true;
   }
   prune() {
     // File deletion runs after acknowledgement and never synchronously blocks image decoding or upload.
     this.cleanup = this.cleanup.then(async () => {
       for (const file of this.orphanedFiles) {await fs.promises.rm(file, {force: true, maxRetries: 2, retryDelay: 50}); this.orphanedFiles.delete(file);}
+      for (const group of this.orphanedBatches) {await fs.promises.rmdir(group).catch(() => {}); this.orphanedBatches.delete(group);}
       let total = this.state.transfers.reduce((sum, item) => sum + (item.cachedBytes ?? 0), 0);
       const oldest = this.state.transfers.filter(item => item.imagePath).sort((a, b) => a.createdAt - b.createdAt);
       const newest = oldest.at(-1);
