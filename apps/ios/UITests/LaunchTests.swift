@@ -138,6 +138,23 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(app.buttons["Camera shutter. Tap for a photo or hold for video."].isEnabled)
     }
 
+    func testReviewReturnsToCommandCAndStopsRecording() throws {
+        guard #available(iOS 27.0, *) else { throw XCTSkip("Native screen capture needs iOS 27") }
+        let app = launch(["--ui-camera", "--ui-review-recording"], language: "en", locale: "en_US")
+        let screen = app.buttons["Screen Capture"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 10))
+        screen.tap()
+        app.buttons["Start Screen Capture"].tap()
+        XCTAssertTrue(app.staticTexts["Recording · 0 s"].exists)
+        app.buttons["Done"].tap()
+        XCUIDevice.shared.press(.home)
+
+        app.open(URL(string: "imagebridge://screen/review")!)
+        XCTAssertTrue(app.navigationBars["Screen Capture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Cancel Saving"].exists)
+        XCTAssertFalse(app.staticTexts["Recording · 0 s"].exists)
+    }
+
     func testEnglishCameraPairingAndScreenGuide() {
         let app = launch(["--ui-camera"], language: "en", locale: "en_US")
         let camera = app.buttons["Camera"]
@@ -153,6 +170,7 @@ final class LaunchTests: XCTestCase {
         app.buttons["Burst"].tap()
         let batchLimit = app.descendants(matching: .any)["burstLimitDial"].firstMatch
         XCTAssertTrue(batchLimit.isHittable)
+        attach(app, "CommandC compact burst scale")
         batchLimit.tap()
         let priorLimit = batchLimit.value as? String
         let dialCenter = batchLimit.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
@@ -187,11 +205,12 @@ final class LaunchTests: XCTestCase {
         screen.tap()
         let screenshotLimit = app.sliders["screenLimitSlider"]
         XCTAssertTrue(screenshotLimit.waitForExistence(timeout: 3))
+        XCTAssertEqual(screenshotLimit.value as? String, newLimit?.split(separator: "/").last.map(String.init))
         screenshotLimit.adjust(toNormalizedSliderPosition: 0.50)
         let savedScreenshotLimit = screenshotLimit.value as? String
         XCTAssertNotNil(savedScreenshotLimit)
         app.buttons["Done"].tap()
-        XCTAssertEqual(batchLimit.value as? String, newLimit?.replacingOccurrences(of: "0/", with: "1/"))
+        XCTAssertEqual(batchLimit.value as? String, savedScreenshotLimit.map { "1/\($0)" })
         screen.tap()
         XCTAssertTrue(screenshotLimit.waitForExistence(timeout: 3))
         XCTAssertEqual(screenshotLimit.value as? String, savedScreenshotLimit)

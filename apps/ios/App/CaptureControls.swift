@@ -33,6 +33,11 @@ struct BurstLimitDial: View {
     @State private var expanded = false
     @State private var dragStart: Int?
     @State private var collapse: Task<Void, Never>?
+    private var selectedLimit: Int { CaptureBatch.limit(limit) }
+    private var nearbyLimits: Range<Int> {
+        let first = min(max(selectedLimit - 1, 1), CaptureBatch.maximum - 3)
+        return first..<(first + 4)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -46,12 +51,26 @@ struct BurstLimitDial: View {
                 collapse?.cancel()
                 setExpanded(!expanded)
             } label: {
-                Text("\(count)/\(CaptureBatch.limit(limit))")
-                    .font(.footnote.monospacedDigit().weight(.semibold))
-                    .padding(.horizontal, 13).padding(.vertical, 6)
-                    .background(Color.black.opacity(0.75), in: Capsule())
-                    .frame(minWidth: 60, minHeight: 44)
-                    .contentShape(Rectangle())
+                Group {
+                    if expanded {
+                        selection
+                    } else {
+                        HStack(spacing: 3) {
+                            ForEach(nearbyLimits, id: \.self) { value in
+                                if value == selectedLimit {
+                                    selection
+                                } else {
+                                    Text(value.formatted()).foregroundColor(.white.opacity(0.85)).frame(minWidth: 30)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 4).padding(.vertical, 3)
+                        .background(Color.black.opacity(0.6), in: Capsule())
+                    }
+                }
+                .font(.footnote.monospacedDigit().weight(.semibold))
+                .frame(minWidth: 60, minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain).foregroundColor(cameraAccent)
             .simultaneousGesture(drag)
@@ -67,6 +86,12 @@ struct BurstLimitDial: View {
             }
         }
         .onDisappear { collapse?.cancel() }
+    }
+
+    private var selection: some View {
+        Text("\(count)/\(selectedLimit)")
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(expanded ? Color.black.opacity(0.75) : cameraAccent.opacity(0.15), in: Capsule())
     }
 
     private var dial: some View {

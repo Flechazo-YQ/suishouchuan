@@ -60,11 +60,11 @@ import ActivityKit
         HStack(spacing: 10) {
             if state.pending {
                 Text("Saving…").foregroundStyle(.secondary)
-            } else {
+            } else if state.readyToReview != true {
                 Button(intent: CaptureIslandFrameIntent()) { Label("Capture", systemImage: "rectangle.dashed") }.disabled(state.recording || state.count >= (state.batchLimit ?? 10))
                 Button(intent: ToggleScreenRecordingIntent()) { Label(state.recording ? "Stop Recording" : "Record", systemImage: state.recording ? "stop.fill" : "record.circle") }.disabled(state.count > 0)
             }
-            Link(destination: URL(string: "imagebridge://screen")!) {
+            Link(destination: URL(string: "imagebridge://screen/review")!) {
                 Text("Review").fontWeight(.semibold)
             }
             .buttonStyle(.borderedProminent)

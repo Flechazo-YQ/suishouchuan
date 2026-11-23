@@ -84,7 +84,6 @@ struct NativeScreenTools: View {
             captureGuide
         }
         .onDisappear { preparation?.cancel() }
-        .onChange(of: limit) { capture.updateBatchLimit($0) }
         .alert("Clear these captures?", isPresented: $discard) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) { do { try capture.clearImported(); selected = nil } catch { capture.message = error.localizedDescription } }
@@ -119,7 +118,7 @@ struct NativeScreenTools: View {
                 Text("Use the Action Button").multilineTextAlignment(.leading)
             }
             DisclosureGroup("Record with the Dynamic Island") {
-                Text("Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Stop Recording. Recordings stop after 30 seconds. Tap Review to return to CommandC.")
+                Text("Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Review. CommandC opens and saves the recording for you to preview. Recordings stop after 30 seconds.")
                     .font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
         }.padding(16).background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16))

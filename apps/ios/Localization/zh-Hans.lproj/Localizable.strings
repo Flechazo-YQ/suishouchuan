@@ -149,7 +149,8 @@
 "Start or Stop Screen Recording with CommandC" = "CommandC 开始或停止录屏";
 "Start Screen Capture" = "开始屏幕采集";
 "Start screen capture in CommandC and switch to the app you want to capture. Press and hold the Action button, then wait about 1.5 seconds for one screenshot." = "每次先在 CommandC 开始采集，再去目标 App 长按机身操作按钮，等约 1.5 秒即可截一张。";
-"Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Stop Recording. Recordings stop after 30 seconds. Tap Review to return to CommandC." = "开始采集后，切到要录制的 App。长按灵动岛，点「录屏」后收起面板。结束时再长按灵动岛，点「停止录屏」。每段最长 30 秒。回 CommandC 的「截屏 / 录屏」预览并发送。";
+"Start screen capture and switch to the app you want to record. Press and hold the Dynamic Island, tap Record, then collapse the controls. To finish, press and hold again and tap Review. CommandC opens and saves the recording for you to preview. Recordings stop after 30 seconds." = "开始采集后，切到要录制的 App。长按灵动岛，点「录屏」后收起面板。结束时再长按灵动岛，点「查看（Review）」，手机会回到 CommandC 并保存录屏，保存后即可预览。每段最长 30 秒。";
+"Ready to Review" = "可查看";
 "Start screen capture in CommandC first." = "请先在 CommandC 开始屏幕采集。";
 "Stop" = "停止";
 "Stop Recording" = "停止录屏";

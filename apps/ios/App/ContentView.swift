@@ -8,7 +8,6 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("captureBatchLimit") private var captureBatchLimit = CaptureBatch.defaultLimit
-    @AppStorage("screenCaptureBatchLimit") private var screenCaptureBatchLimit = 0
     @State private var burst = false
     @State private var reviewing = false
     @State private var reviewIndex = 0
@@ -53,7 +52,7 @@ struct ContentView: View {
             NavigationView { QRScanner { queuePairing($0) }.navigationTitle("Scan Computer QR Code").toolbar { Button("Cancel") { showScanner = false } } }
         }
         .sheet(isPresented: $showLibrary) {
-            let selectionLimit = libraryKind == .images ? CaptureBatch.limit(screenCaptureBatchLimit) : CaptureBatch.defaultLimit
+            let selectionLimit = libraryKind == .images ? CaptureBatch.limit(captureBatchLimit) : CaptureBatch.defaultLimit
             LibraryPicker(limit: selectionLimit, kind: libraryKind) { providers in
                 showLibrary = false
                 guard !providers.isEmpty else { return }
@@ -85,12 +84,13 @@ struct ContentView: View {
             Button("Discard", role: .destructive) { model.clear(); model.restoreLastDraft(); syncDraftPresentation() }
         } message: { Text("This removes the draft copies. Your originals stay in Photos.") }
         .onOpenURL { url in
-            if url.scheme == "imagebridge", url.host == "screen" { showScreenTools = true }
-            else { queuePairing(url.absoluteString) }
+            if url.scheme == "imagebridge", url.host == "screen" {
+                if #available(iOS 27.0, *), url.path == "/review" { ScreenCaptureSession.shared.prepareReview() }
+                showScreenTools = true
+            } else { queuePairing(url.absoluteString) }
         }
         .onAppear {
             if #available(iOS 27.0, *) { ScreenCaptureSession.shared.dismissOrphanedActivities() }
-            if screenCaptureBatchLimit == 0 { screenCaptureBatchLimit = CaptureBatch.limit(captureBatchLimit) }
             model.switchCapture(burst: false)
             camera.captured = { file, video in importCapture(file, video: video) }
             if scenePhase == .active { model.startConnectionMonitoring(); model.startDiscovery() }
@@ -98,6 +98,9 @@ struct ContentView: View {
         }
         .onDisappear { camera.stop(); camera.captured = nil; model.stopDiscovery(); model.stopConnectionMonitoring() }
         .onChange(of: burst) { value in model.switchCapture(burst: value) }
+        .onChange(of: captureBatchLimit) { value in
+            if #available(iOS 27.0, *) { ScreenCaptureSession.shared.updateBatchLimit(value) }
+        }
         .onChange(of: cameraVisible) { value in
             if value { camera.start() } else { camera.stop() }
         }
@@ -337,7 +340,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if #available(iOS 27.0, *) {
-                        NativeScreenTools(limit: $screenCaptureBatchLimit) { files in
+                        NativeScreenTools(limit: $captureBatchLimit) { files in
                             try await model.importScreenFiles(files)
                             showScreenTools = false
                             syncDraftPresentation(review: true)
@@ -355,7 +358,7 @@ struct ContentView: View {
                 }.padding(24)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                ScreenLimitBar(limit: $screenCaptureBatchLimit)
+                ScreenLimitBar(limit: $captureBatchLimit)
             }
             .navigationTitle("Screen Capture").navigationBarTitleDisplayMode(.inline).toolbar { Button("Done") { showScreenTools = false } }
         }.preferredColorScheme(.dark)

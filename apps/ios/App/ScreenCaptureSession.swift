@@ -9,8 +9,10 @@ import ActivityKit
     private typealias CaptureActivity = Activity<ScreenCaptureAttributes>
     private var current: CaptureActivity?
     private var dismissals: [String: (task: Task<Void, Never>, background: UIBackgroundTaskIdentifier)] = [:]
+    var isShowing: Bool { current != nil }
 
     func start(_ state: ScreenCaptureAttributes.ContentState) throws {
+        dismissCurrent()
         current = try CaptureActivity.request(attributes: ScreenCaptureAttributes(), content: ActivityContent(state: state, staleDate: nil), pushType: nil)
     }
 
@@ -85,7 +87,8 @@ import ActivityKit
     @Published private(set) var batchLimit = CaptureBatch.defaultLimit
     @Published private(set) var finishing = false
     @Published private(set) var ending = false
-    let starting = false, recording = false, pendingShot = false
+    @Published private(set) var recording = false
+    let starting = false, pendingShot = false
     let files: [URL] = []
     let seconds = 0
     let isVideo = false
@@ -99,11 +102,12 @@ import ActivityKit
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-stalled-recording") {
             active = true
-            finishing = true
-            message = ""
-            saveWatchdog.arm(after: .seconds(5)) { [weak self] in
-                self?.finishSaving(String(localized: "Saving the recording timed out. You can start a new capture."))
-            }
+            simulateSaving()
+            return
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-review-recording") {
+            active = true
+            recording = true
             return
         }
         if ProcessInfo.processInfo.arguments.contains("--ui-screen-capture-active") {
@@ -126,6 +130,11 @@ import ActivityKit
     func confirmStop() async {}
     func dismissOrphanedActivities() { liveActivity.dismissOrphans() }
     func updateBatchLimit(_ limit: Int) { batchLimit = CaptureBatch.limit(limit) }
+    func prepareReview() {
+        liveActivity.dismissCurrent()
+        if recording { simulateSaving(after: .seconds(12)) }
+        else if !finishing { active = false }
+    }
     func stop() async {
         guard !ending else { return }
         ending = true
@@ -146,6 +155,14 @@ import ActivityKit
         finishing = false
         active = false
         message = result
+    }
+    private func simulateSaving(after delay: Duration = .seconds(5)) {
+        recording = false
+        finishing = true
+        message = ""
+        saveWatchdog.arm(after: delay) { [weak self] in
+            self?.finishSaving(String(localized: "Saving the recording timed out. You can start a new capture."))
+        }
     }
     func remove(_ file: URL) throws {}
     func clearImported() throws {}
@@ -189,10 +206,14 @@ import ActivityKit
     private var canCapture: Bool { active && !recording && !finishing && !isVideo && files.count < batchLimit }
 
     func updateBatchLimit(_ limit: Int) {
-        let next = max(CaptureBatch.limit(limit), files.count + (pendingShot ? 1 : 0))
+        let next = CaptureBatch.limit(limit)
         guard batchLimit != next else { return }
         batchLimit = next
-        Task { await updateActivity() }
+        if active, !recording, !finishing, !pendingShot, !isVideo, files.count >= next {
+            resetCapture(keepingReview: true)
+        } else {
+            Task { await updateActivity() }
+        }
     }
 
     override init() {
@@ -209,7 +230,7 @@ import ActivityKit
 
     func presentPicker(limit: Int) {
         guard !starting, !active, !finishing, !ending else { return }
-        batchLimit = max(CaptureBatch.limit(limit), min(files.count, CaptureBatch.maximum))
+        batchLimit = CaptureBatch.limit(limit)
         #if targetEnvironment(simulator)
         message = String(localized: "Cross-app screen capture is available on an iPhone.")
         return
@@ -285,12 +306,9 @@ import ActivityKit
         shotFailed = false
         message = ""
         await updateActivity()
-        if generation == current, files.count == batchLimit {
-            // Give the last saved count time to appear before the activity ends.
-            try? await Task.sleep(for: .milliseconds(750))
-            guard generation == current else { return }
+        if generation == current, files.count >= batchLimit {
             clearShot(id)
-            await stop()
+            resetCapture(keepingReview: true)
         }
     }
 
@@ -366,7 +384,8 @@ import ActivityKit
     fileprivate func recordingFinished(_ finishedOutput: SCRecordingOutput, error: Error? = nil) {
         guard output === finishedOutput else { return }
         let file = pendingVideo
-        defer { resetCapture() }
+        var saved = false
+        defer { resetCapture(keepingReview: saved) }
         if let error {
             if let file { try? FileManager.default.removeItem(at: file) }
             message = error.localizedDescription
@@ -377,13 +396,14 @@ import ActivityKit
                 }
                 files = [file]
                 try persist(files)
+                saved = true
                 message = String(localized: "Recording saved. Tap Review, then send it from the preview.")
             } catch { fail(error) }
         }
     }
 
     func requestStopConfirmation() async {
-        guard active || finishing else { dismissOrphanedActivities(); return }
+        guard active || finishing || liveActivity.isShowing else { dismissOrphanedActivities(); return }
         stopConfirmationTask?.cancel()
         let deadline = Date().addingTimeInterval(8)
         stopConfirmationDeadline = deadline
@@ -399,11 +419,20 @@ import ActivityKit
     }
 
     func confirmStop() async {
-        guard let deadline = stopConfirmationDeadline, deadline > Date(), active || finishing else {
+        guard let deadline = stopConfirmationDeadline, deadline > Date(), active || finishing || liveActivity.isShowing else {
             dismissOrphanedActivities()
             return
         }
         await stop()
+    }
+
+    func prepareReview() {
+        liveActivity.dismissCurrent()
+        if recording {
+            do { try endRecording() } catch { fail(error) }
+        } else if !finishing {
+            resetCapture()
+        }
     }
 
     func stop() async {
@@ -424,8 +453,8 @@ import ActivityKit
 
     func dismissOrphanedActivities() { liveActivity.dismissOrphans() }
 
-    private func resetCapture() {
-        liveActivity.dismissCurrent()
+    private func resetCapture(keepingReview: Bool = false) {
+        if !keepingReview { liveActivity.dismissCurrent() }
         saveWatchdog.cancel()
         stopConfirmationTask?.cancel()
         stopConfirmationTask = nil
@@ -445,6 +474,7 @@ import ActivityKit
             UIApplication.shared.endBackgroundTask(saveBackground)
             saveBackground = .invalid
         }
+        if keepingReview { Task { await updateActivity() } }
     }
 
     fileprivate func streamStopped(_ source: SCStream, error: Error) {
@@ -474,8 +504,8 @@ import ActivityKit
     private func totalBytes() throws -> Int { try files.reduce(0) { try $0 + ($1.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) } }
     private var state: ScreenCaptureAttributes.ContentState {
         .init(count: files.count, recording: recording, pending: finishing, startedAt: videoStart,
-              message: recording ? String(localized: "Recording · Up to 30 seconds") : shotFailed ? String(localized: "Not saved") : String(localized: "Capture active"),
-              shotFailed: shotFailed, confirmingStop: stopConfirmationDeadline.map { $0 > Date() }, batchLimit: batchLimit)
+              message: !active ? String(localized: "Ready to Review") : recording ? String(localized: "Recording · Up to 30 seconds") : shotFailed ? String(localized: "Not saved") : String(localized: "Capture active"),
+              shotFailed: shotFailed, confirmingStop: stopConfirmationDeadline.map { $0 > Date() }, batchLimit: batchLimit, readyToReview: !active)
     }
     private func startActivity() {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = String(localized: "Capture is ready. Enable Live Activities or use the CommandC shortcut with the Action button."); return }

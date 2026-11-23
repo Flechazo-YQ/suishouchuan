@@ -16,6 +16,7 @@ struct ScreenCaptureAttributes: ActivityAttributes {
         var shotFailed: Bool?
         var confirmingStop: Bool?
         var batchLimit: Int?
+        var readyToReview: Bool?
     }
 }
 
