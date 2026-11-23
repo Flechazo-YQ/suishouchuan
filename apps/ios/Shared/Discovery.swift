@@ -2,16 +2,34 @@ import Foundation
 import Darwin
 
 final class Discovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate {
-    private let browser = NetServiceBrowser()
+    private var browser: NetServiceBrowser?
     private var services: [NetService] = []
     var resolved: ((String, [String], Int) -> Void)?
     var removed: ((String) -> Void)?
-    func start() { stop(); browser.delegate = self; browser.searchForServices(ofType: "_imagebridge._tcp.", inDomain: "local.") }
-    func stop() { browser.stop(); services.forEach { $0.stop() }; services.removeAll() }
+    func start() {
+        guard browser == nil else { return }
+        let next = NetServiceBrowser()
+        browser = next
+        next.delegate = self
+        next.searchForServices(ofType: "_imagebridge._tcp.", inDomain: "local.")
+    }
+    func stop() {
+        let previous = browser
+        browser = nil
+        previous?.delegate = nil
+        previous?.stop()
+        services.forEach { $0.stop() }
+        services.removeAll()
+    }
+    func netServiceBrowser(_ browser: NetServiceBrowser, didNotSearch errorDict: [String: NSNumber]) {
+        if self.browser === browser { stop() }
+    }
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
+        guard self.browser === browser else { return }
         services.append(service); service.delegate = self; service.resolve(withTimeout: 5)
     }
     func netServiceBrowser(_ browser: NetServiceBrowser, didRemove service: NetService, moreComing: Bool) {
+        guard self.browser === browser else { return }
         guard let index = services.firstIndex(where: { $0.name == service.name && $0.type == service.type && $0.domain == service.domain }) else { return }
         let previous = services.remove(at: index)
         let id = identifier(of: previous)

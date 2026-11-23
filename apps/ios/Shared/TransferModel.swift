@@ -50,31 +50,30 @@ struct TransferDraft: Identifiable {
         self.upload = upload
         do { directory = try MediaImporter.directory(); if loadDevices { try reload() } } catch { report(error) }
         discovery.resolved = { [weak self] id, addresses, port in
-            guard let self, let index = self.devices.firstIndex(where: { $0.id == id }) else { return }
-            let previous = self.devices[index]
-            if Set(previous.addresses) != Set(addresses) || previous.port != port {
-                self.devices[index].addresses = addresses; self.devices[index].port = port
-            }
-            if self.connectionPoll != nil { self.checkConnection(self.devices[index]) }
+            guard let self, let device = self.devices.first(where: { $0.id.caseInsensitiveCompare(id) == .orderedSame }) else { return }
+            var candidate = device
+            candidate.port = port
+            candidate.addresses = addresses
+            self.checkConnection(device, discovered: candidate)
         }
         discovery.removed = { [weak self] id in
-            guard let self, self.connectionPoll != nil, let device = self.devices.first(where: { $0.id == id }) else { return }
+            guard let self, self.connectionPoll != nil,
+                  let device = self.devices.first(where: { $0.id.caseInsensitiveCompare(id) == .orderedSame }) else { return }
             self.checkConnection(device)
         }
     }
     func reload() throws {
-        let stored = try store.devices()
-        devices = stored.map { device in
-            devices.first { $0.id == device.id && $0.token == device.token } ?? device
-        }
-        selectedId = store.selectedId
+        devices = try store.devices()
+        let previous = store.selectedId
+        selectedId = devices.first { $0.id == previous }?.id ?? devices.first?.id ?? ""
     }
     func startDiscovery() { discovery.start() }
     func stopDiscovery() { discovery.stop() }
     func connection(for id: String) -> ComputerConnection { connections[id] ?? .checking }
     func startConnectionMonitoring() {
         stopConnectionMonitoring()
-        for device in devices { checkConnection(device, entering: true) }
+        if let target { checkConnection(target, entering: true) }
+        for device in devices where device.id != selectedId { checkConnection(device, entering: true) }
         connectionPoll = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(nanoseconds: 900_000_000_000) } catch { return }
@@ -89,18 +88,36 @@ struct TransferDraft: Identifiable {
         connectionTasks.values.forEach { $0.cancel() }
         connectionTasks.removeAll()
     }
-    private func checkConnection(_ device: PairedDevice, entering: Bool = false) {
+    private func checkConnection(_ device: PairedDevice, entering: Bool = false, discovered: PairedDevice? = nil) {
         connectionTasks[device.id]?.cancel()
         if entering, connection(for: device.id) != .checking { connections[device.id] = .checking }
         connectionTasks[device.id] = Task { [weak self] in
-            let connected = await PinnedClient(device: device).checkConnection()
-            guard let self, !Task.isCancelled, self.devices.contains(device) else { return }
+            var endpoint = discovered ?? device
+            var address = await PinnedClient(device: endpoint).verifiedAddress()
+            if address == nil, endpoint != device, !Task.isCancelled {
+                endpoint = device
+                address = await PinnedClient(device: endpoint).verifiedAddress()
+            }
+            guard let self, !Task.isCancelled, let index = self.devices.firstIndex(of: device) else { return }
             self.connectionTasks[device.id] = nil
-            let status: ComputerConnection = connected ? .connected : .disconnected
+            if let address {
+                endpoint.addresses = [address] + endpoint.addresses.filter { $0 != address }
+                if endpoint != device {
+                    self.devices[index] = endpoint
+                    try? self.store.rememberEndpoint(endpoint)
+                }
+            }
+            let status: ComputerConnection = address == nil ? .disconnected : .connected
             if self.connection(for: device.id) != status { self.connections[device.id] = status }
         }
     }
-    func select(_ id: String) { do { try store.select(id); selectedId = id } catch { report(error) } }
+    func select(_ id: String) {
+        do {
+            try store.select(id)
+            selectedId = id
+            if let target, connectionPoll != nil { checkConnection(target) }
+        } catch { report(error) }
+    }
     func removeDevice(_ id: String) {
         do {
             try store.remove(id); try reload()

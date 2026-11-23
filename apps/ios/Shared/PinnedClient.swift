@@ -2,6 +2,7 @@ import Foundation
 import Security
 
 final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
+    private static let legacyProbe = "/v1/transfers/00000000-0000-0000-0000-000000000000"
     private let fingerprint: String
     private let addresses: [String]
     private let port: Int
@@ -15,16 +16,21 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
     }
 
     func checkConnection() async -> Bool {
+        await verifiedAddress() != nil
+    }
+
+    func verifiedAddress() async -> String? {
+        guard let token, !token.isEmpty else { return nil }
         do {
-            let result = try await withMediaDeadline(seconds: 8, timeout: .message(String(localized: "Checking connection timed out."))) {
+            return try await withMediaDeadline(seconds: 8, timeout: .message(String(localized: "Checking connection timed out."))) {
                 do {
-                    return try await self.request(route: "/v1/presence", method: "GET", timeout: 3)
+                    return try await self.requestResponse(route: "/v1/presence", method: "GET", timeout: 3).address
                 } catch BridgeError.receiver(status: 404, message: _) {
-                    return try await self.request(route: "/v1/capabilities", method: "GET", timeout: 3)
+                    // Legacy receivers authenticate before looking up the transfer. A missing record is expected.
+                    return try await self.requestResponse(route: Self.legacyProbe, method: "GET", timeout: 3).address
                 }
             }
-            return !result.isEmpty
-        } catch { return false }
+        } catch { return nil }
     }
 
     func pair(_ invitation: Invitation, clientId: String, name: String) async throws -> PairedDevice {
@@ -64,7 +70,11 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         return try JSONDecoder().decode(TransferResult.self, from: data)
     }
 
-    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil, timeout: TimeInterval = 30) async throws -> Data {
+    private func request(route: String, method: String = "POST", json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil) async throws -> Data {
+        try await requestResponse(route: route, method: method, json: json, payload: payload, requestId: requestId).data
+    }
+
+    private func requestResponse(route: String, method: String, json: Data? = nil, payload: UploadPayload? = nil, requestId: UUID? = nil, timeout: TimeInterval = 30) async throws -> (data: Data, address: String) {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = 150
@@ -97,10 +107,13 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
                 guard response.0.count <= 65536, let http = response.1 as? HTTPURLResponse else { throw BridgeError.message(String(localized: "The computer sent an invalid response.")) }
                 guard (200...299).contains(http.statusCode) else {
                     let result = try? JSONDecoder().decode(TransferResult.self, from: response.0)
+                    if route == Self.legacyProbe, http.statusCode == 404, result?.error == "未找到发送记录，可以重试" {
+                        return (response.0, address)
+                    }
                     let message = receiverError(result?.error, status: http.statusCode, pairing: route == "/v1/pair")
                     throw BridgeError.receiver(status: http.statusCode, message: message)
                 }
-                return response.0
+                return (response.0, address)
             } catch let error as URLError {
                 if error.code == .cancelled { throw error }
                 lastError = error

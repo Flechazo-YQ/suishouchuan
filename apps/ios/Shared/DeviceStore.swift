@@ -31,6 +31,14 @@ struct DeviceStore {
         var values = try devices().filter { $0.id != device.id }; values.append(device)
         try write(values); try select(device.id)
     }
+    func rememberEndpoint(_ device: PairedDevice) throws {
+        var values = try devices()
+        guard let index = values.firstIndex(where: { $0.id == device.id && $0.token == device.token && $0.fingerprint == device.fingerprint }),
+              values[index].addresses != device.addresses || values[index].port != device.port else { return }
+        values[index].addresses = device.addresses
+        values[index].port = device.port
+        try write(values)
+    }
     func remove(_ id: String) throws {
         let values = try devices().filter { $0.id != id }; try write(values)
         if selectedId == id { try select(values.first?.id ?? "") }

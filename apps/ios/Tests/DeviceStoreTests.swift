@@ -11,9 +11,16 @@ final class DeviceStoreTests: XCTestCase {
         try store.save(device)
         XCTAssertEqual(try DeviceStore().devices().first(where: { $0.id == device.id })?.token, "local-test-token")
         XCTAssertEqual(DeviceStore().selectedId, device.id)
+        var newEndpoint = device
+        newEndpoint.addresses = ["192.168.1.9"]
+        newEndpoint.port = 43900
+        try store.rememberEndpoint(newEndpoint)
+        XCTAssertEqual(try DeviceStore().devices().first(where: { $0.id == device.id }), newEndpoint)
+        XCTAssertEqual(DeviceStore().selectedId, device.id)
         let clientId = try store.clientId()
         XCTAssertEqual(try DeviceStore().clientId(), clientId)
         try store.remove(device.id)
+        try store.rememberEndpoint(newEndpoint)
         XCTAssertFalse(try store.devices().contains(where: { $0.id == device.id }))
     }
 }
