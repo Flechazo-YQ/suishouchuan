@@ -74,7 +74,7 @@ export async function runSelfTest(receiver: Receiver, copy: (filename: string) =
     const batchClipboard = capabilities.body.maxBatchImages === batchImages.length && batchResult.body.status === 'copied' &&
       batchFiles.length === batchImages.length && batchFiles.every((file, index) => path.basename(file) === `${batchId}-${String(index + 1).padStart(2, '0')}.png`);
     const report = {pairing: paired.status === 201, transfer: result.body.status === 'copied', clipboard: {width: meta.width, height: meta.height, alpha: meta.hasAlpha},
-      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, batchFileCount: batchFiles.length, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
+      duplicateDidNotOverwrite: repeated.body.status === 'copied' && preserved === 'imagebridge-idempotency-marker', unauthorizedRejected: unauthorized.status === 401, fileClipboard, batchClipboard, batchFileCount: batchFiles.length, batchStatus: batchResult.body.status, batchError: batchResult.body.error, staleWriteRejected, missingFileRejected, elapsedMs: elapsed, version: app.getVersion()};
     const clipboardGuardPassed = windows ? staleWriteRejected : missingFileRejected;
     if (!report.pairing || !report.transfer || !report.duplicateDidNotOverwrite || !report.unauthorizedRejected || !fileClipboard || !batchClipboard || !clipboardGuardPassed || meta.width !== 720) throw new Error(JSON.stringify(report));
     return report;

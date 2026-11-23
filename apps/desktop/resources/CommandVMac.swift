@@ -50,8 +50,15 @@ enum CommandVMac {
         }
         let pasteboard = NSPasteboard.general
         let previous = pasteboard.changeCount
+        let items = try files.map { file -> NSPasteboardItem in
+            let item = NSPasteboardItem()
+            guard item.setString(file.absoluteString, forType: .fileURL) else {
+                throw HelperError.clipboardRejected
+            }
+            return item
+        }
         pasteboard.clearContents()
-        guard pasteboard.writeObjects(files.map { $0 as NSURL }), pasteboard.changeCount != previous,
+        guard pasteboard.writeObjects(items), pasteboard.changeCount != previous,
               filePaths(pasteboard) == files.map(\.path) else { throw HelperError.clipboardRejected }
     }
 

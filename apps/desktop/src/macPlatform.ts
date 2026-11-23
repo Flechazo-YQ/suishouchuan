@@ -9,7 +9,7 @@ async function run(operation: 'copy-image' | 'copy-files' | 'read-files' | 'vide
   const bundled = process.resourcesPath && path.join(process.resourcesPath, 'commandv-mac');
   const executable = bundled && fs.existsSync(bundled) ? bundled : path.resolve(__dirname, '../resources/commandv-mac');
   try {
-    const {stdout} = await execute(executable, [operation, ...filenames], {timeout: 10000, maxBuffer: 16384});
+    const {stdout} = await execute(executable, [operation, ...filenames], {timeout: 10000, maxBuffer: 131072});
     return stdout;
   } catch (error) {
     const failure = error as NodeJS.ErrnoException & {stderr?: string};
