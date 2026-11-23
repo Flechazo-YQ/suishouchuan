@@ -25,6 +25,8 @@ import ActivityKit
     }
     func requestFrame() throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func toggleRecording() async throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
+    func requestStopConfirmation() async {}
+    func confirmStop() async {}
     func stop() async { active = false }
     func remove(_ file: URL) throws {}
     func clearImported() throws {}
