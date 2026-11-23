@@ -61,15 +61,19 @@ class PinnedClient(private val device: JSONObject) {
         }
         throw IllegalStateException("连接电脑失败，请检查电脑是否运行、两端网络和防火墙。${last?.localizedMessage ?: "没有可用地址"}", last)
     }
-    fun checkConnection(): Boolean {
+    fun verifiedAddress(): String? {
+        if (device.optString("token").isEmpty()) return null
         val addresses = device.getJSONArray("addresses")
-        fun probe(address: String, route: String): Int {
+        fun probe(address: String, route: String, legacy: Boolean = false): Int {
             val request = connection(address, route)
             return try {
                 request.connectTimeout = 2000
                 request.readTimeout = 2000
                 request.useCaches = false
-                request.responseCode
+                val status = request.responseCode
+                if (!legacy || status != 404) return status
+                val error = request.errorStream?.bufferedReader()?.use { it.readText() } ?: return status
+                if (JSONObject(error).optString("error") == "未找到发送记录，可以重试") 200 else status
             } finally { request.disconnect() }
         }
         for (index in 0 until addresses.length()) {
@@ -77,11 +81,11 @@ class PinnedClient(private val device: JSONObject) {
             if (!privateAddress(address)) continue
             try {
                 val status = probe(address, "/v1/presence")
-                if (status in 200..299) return true
-                if (status == 404 && probe(address, "/v1/capabilities") in 200..299) return true
+                if (status in 200..299) return address
+                if (status == 404 && probe(address, "/v1/transfers/00000000-0000-0000-0000-000000000000", legacy = true) in 200..299) return address
             } catch (_: java.io.IOException) { continue }
         }
-        return false
+        return null
     }
     private fun send(address: String, route: String, json: JSONObject?, image: File?, mime: String?, requestId: String?, batch: List<Pair<File, String>>?): JSONObject {
         val connection = connection(address, route)

@@ -13,13 +13,17 @@ import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 
 class BridgeModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
     private val storage = SecureStore(context)
     private val discovery = Discovery(context)
     private val executor = Executors.newSingleThreadExecutor()
     private val presenceExecutor = Executors.newFixedThreadPool(2)
+    private val probeSequence = AtomicLong()
+    private val mostRecentProbe = ConcurrentHashMap<String, Long>()
     private var activityPromise: Promise? = null
     init {
         storage.write(storage.read())
@@ -51,7 +55,9 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
         for (index in 0 until devices.length()) {
             val device = JSONObject(devices.getJSONObject(index).toString()); device.remove("token"); publicDevices.put(device)
         }
-        JSONObject().put("devices", publicDevices).put("defaultId", data.optString("defaultId"))
+        val savedId = data.optString("defaultId")
+        val defaultId = findDevice(data, savedId)?.optString("deviceId") ?: devices.optJSONObject(0)?.optString("deviceId").orEmpty()
+        JSONObject().put("devices", publicDevices).put("defaultId", defaultId)
             .put("discovered", discovery.list()).put("sharedError", SharedInbox.error ?: "").toString()
     }
     @ReactMethod fun takePending(promise: Promise) {promise.resolve(SharedInbox.takePending())}
@@ -59,15 +65,43 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
     @ReactMethod fun discover(promise: Promise) {try {discovery.start(); promise.resolve(null)} catch (exception: Exception) {promise.reject("DISCOVERY", exception.message, exception)}}
     @ReactMethod fun stopDiscovery() {discovery.stop()}
     @ReactMethod fun checkConnection(deviceId: String, promise: Promise) {
+        val probe = probeSequence.incrementAndGet()
+        mostRecentProbe[deviceId] = probe
         presenceExecutor.execute {
-            val connected = runCatching {
-                val devices = storage.read().getJSONArray("devices")
-                val device = (0 until devices.length()).map { devices.getJSONObject(it) }
-                    .firstOrNull { it.optString("deviceId") == deviceId }
-                device != null && PinnedClient(discovery.refresh(device)).checkConnection()
-            }.getOrDefault(false)
-            promise.resolve(connected)
+            val endpoint = runCatching { findVerifiedEndpoint(deviceId) }.getOrNull()
+            executor.execute {
+                val connected = mostRecentProbe.remove(deviceId, probe) && endpoint != null &&
+                    runCatching { rememberEndpoint(deviceId, endpoint) }.getOrDefault(false)
+                promise.resolve(connected)
+            }
         }
+    }
+    private fun findDevice(data: JSONObject, id: String): JSONObject? {
+        val devices = data.getJSONArray("devices")
+        return (0 until devices.length()).asSequence().map { devices.getJSONObject(it) }.firstOrNull { it.optString("deviceId") == id }
+    }
+    private fun findVerifiedEndpoint(deviceId: String): JSONObject? {
+        val saved = findDevice(storage.read(), deviceId) ?: return null
+        val discovered = discovery.endpointFor(saved)
+        for (candidate in listOf(discovered, saved).distinct()) {
+            val address = PinnedClient(candidate).verifiedAddress() ?: continue
+            val addresses = candidate.getJSONArray("addresses")
+            val ordered = listOf(address) + (0 until addresses.length()).map(addresses::getString).filter { it != address }
+            return candidate.put("addresses", JSONArray(ordered))
+        }
+        return null
+    }
+    private fun rememberEndpoint(deviceId: String, endpoint: JSONObject): Boolean {
+        val data = storage.read()
+        val current = findDevice(data, deviceId) ?: return false
+        if (current.optString("token") != endpoint.optString("token") || current.optString("fingerprint") != endpoint.optString("fingerprint")) return false
+        val addresses = endpoint.getJSONArray("addresses")
+        val port = endpoint.getInt("port")
+        if (current.getInt("port") != port || current.getJSONArray("addresses").toString() != addresses.toString()) {
+            current.put("addresses", addresses).put("port", port)
+            storage.write(data)
+        }
+        return true
     }
     @ReactMethod fun selectDevice(id: String, promise: Promise) = work(promise) {
         val data = storage.read(); val devices = data.getJSONArray("devices")
@@ -141,7 +175,7 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
             Pair(file, type)
         }
         require(files.sumOf {it.first.length()} <= 100000000L) {"整组超过 100 MB，请拆分发送"}
-        val client = PinnedClient(discovery.refresh(device))
+        val client = PinnedClient(device)
         val result = try {client.request("/v1/batches", requestId = id, batch = files)}
             catch (exception: IllegalStateException) {try {client.request("/v1/transfers/$id")} catch (_: Exception) {throw exception}}
         if (result.optString("status") == "copied") files.forEach {Outbox.discard(context.cacheDir, it.first)}
@@ -160,7 +194,7 @@ class BridgeModule(private val context: ReactApplicationContext) : ReactContextB
         require(file.length() in 1..(if (isVideo) 100000000L else 32L * 1024 * 1024)) { "文件超过大小限制" }
         val id = image.getString("requestId")
         require(Regex("[a-f0-9-]{36}").matches(id)) { "请求编号无效" }
-        val client = PinnedClient(discovery.refresh(device))
+        val client = PinnedClient(device)
         val result = try {client.request(if (isVideo) "/v1/videos" else "/v1/images", image = file, mime = image.getString("mime"), requestId = id)}
         catch (exception: IllegalStateException) {
             try {client.request("/v1/transfers/$id")}

@@ -10,25 +10,26 @@ import java.util.concurrent.ConcurrentHashMap
 class Discovery(context: Context) {
     private val manager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val found = ConcurrentHashMap<String, JSONObject>()
-    private var listener: NsdManager.DiscoveryListener? = null
+    @Volatile private var listener: NsdManager.DiscoveryListener? = null
     fun start() {
         if (listener != null) return
         val callback = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(type: String) {}
             override fun onDiscoveryStopped(type: String) {}
-            override fun onStartDiscoveryFailed(type: String, error: Int) {listener = null}
-            override fun onStopDiscoveryFailed(type: String, error: Int) {listener = null}
-            override fun onServiceLost(service: NsdServiceInfo) {found.remove(service.serviceName)}
-            override fun onServiceFound(service: NsdServiceInfo) {resolve(service)}
+            override fun onStartDiscoveryFailed(type: String, error: Int) {if (listener === this) listener = null}
+            override fun onStopDiscoveryFailed(type: String, error: Int) {if (listener === this) listener = null}
+            override fun onServiceLost(service: NsdServiceInfo) {if (listener === this) found.remove(service.serviceName)}
+            override fun onServiceFound(service: NsdServiceInfo) {if (listener === this) resolve(service, this)}
         }
         listener = callback
         try {manager.discoverServices("_imagebridge._tcp.", NsdManager.PROTOCOL_DNS_SD, callback)}
         catch (_: SecurityException) {listener = null}
     }
-    @Suppress("DEPRECATION") private fun resolve(service: NsdServiceInfo) {
+    @Suppress("DEPRECATION") private fun resolve(service: NsdServiceInfo, owner: NsdManager.DiscoveryListener) {
         manager.resolveService(service, object : NsdManager.ResolveListener {
             override fun onResolveFailed(info: NsdServiceInfo, error: Int) {}
             override fun onServiceResolved(info: NsdServiceInfo) {
+                if (listener !== owner) return
                 val id = info.attributes["id"]?.toString(Charsets.UTF_8) ?: return
                 val address = info.host?.hostAddress ?: return
                 if (!PinnedClient.privateAddress(address)) return
@@ -38,10 +39,16 @@ class Discovery(context: Context) {
         })
     }
     fun list(): JSONArray = JSONArray(found.values.toList())
-    fun refresh(device: JSONObject): JSONObject {
-        val match = found.values.find { it.optString("deviceId") == device.optString("deviceId") }
-        if (match != null) {device.put("addresses", match.getJSONArray("addresses")); device.put("port", match.getInt("port"))}
-        return device
+    fun endpointFor(device: JSONObject): JSONObject {
+        val match = found.values.find { it.optString("deviceId").equals(device.optString("deviceId"), ignoreCase = true) } ?: return device
+        return JSONObject(device.toString()).put("addresses", match.getJSONArray("addresses")).put("port", match.getInt("port"))
     }
-    fun stop() {listener?.let {callback -> try {manager.stopServiceDiscovery(callback)} catch (_: IllegalArgumentException) { } }; listener = null; found.clear()}
+    fun stop() {
+        val previous = listener
+        listener = null
+        found.clear()
+        if (previous != null) {
+            try { manager.stopServiceDiscovery(previous) } catch (_: IllegalArgumentException) { }
+        }
+    }
 }
