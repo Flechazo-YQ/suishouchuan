@@ -111,6 +111,28 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(app.buttons["开始屏幕采集"].waitForExistence(timeout: 3))
     }
 
+    func testStalledRecordingCanBeCanceledAndTimesOut() throws {
+        guard #available(iOS 27.0, *) else { throw XCTSkip("Native screen capture needs iOS 27") }
+        let app = launch(["--ui-camera", "--ui-stalled-recording"], language: "en", locale: "en_US")
+        let screen = app.buttons["Screen Capture"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 10))
+        screen.tap()
+        let start = app.buttons["Start Screen Capture"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        start.tap()
+        let cancel = app.buttons["Cancel Saving"]
+        XCTAssertTrue(cancel.isHittable)
+        attach(app, "CommandC recording recovery controls")
+        cancel.tap()
+        XCTAssertTrue(app.staticTexts["Recording save canceled."].waitForExistence(timeout: 3))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["Saving the recording timed out. You can start a new capture."].waitForExistence(timeout: 10))
+        XCTAssertTrue(start.isHittable)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Camera"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["Camera shutter. Tap for a photo or hold for video."].isEnabled)
+    }
+
     func testEnglishCameraPairingAndScreenGuide() {
         let app = launch(["--ui-camera"], language: "en", locale: "en_US")
         let camera = app.buttons["Camera"]

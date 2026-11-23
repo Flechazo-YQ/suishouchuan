@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var confirmUpload = false
     @State private var confirmDiscard = false
     @State private var captureFlash = false
+    @State private var sendTask: Task<Void, Never>?
     private var locked: Bool { model.busy || camera.capturing || camera.recording || camera.finishing }
     private var group: Bool { model.source == .burst || model.source == .library }
     private var cameraVisible: Bool { scenePhase == .active && !reviewing && !showDevices && !showScanner && !scannerPending && !showLibrary && !showScreenTools && !testCamera }
@@ -87,6 +88,7 @@ struct ContentView: View {
             else { queuePairing(url.absoluteString) }
         }
         .onAppear {
+            if #available(iOS 27.0, *) { ScreenCaptureSession.shared.dismissOrphanedActivities() }
             model.switchCapture(burst: false)
             camera.captured = { file, video in importCapture(file, video: video) }
             model.startDiscovery()
@@ -173,7 +175,11 @@ struct ContentView: View {
                     }.padding(.top, 14)
                 }
                 if model.busy || camera.finishing {
-                    VStack(spacing: 12) { ProgressView().tint(.white); Text("Working…").font(.footnote) }
+                    VStack(spacing: 12) {
+                        ProgressView().tint(.white)
+                        Text("Working…").font(.footnote)
+                        if let sendTask { Button("Cancel Sending", role: .cancel) { sendTask.cancel() } }
+                    }
                         .padding(22).background(Color.black.opacity(0.75)).cornerRadius(16)
                 }
                 if !model.message.isEmpty && !model.busy {
@@ -357,8 +363,19 @@ struct ContentView: View {
         if model.items.isEmpty { reviewing = false; model.switchCapture(burst: burst) }
     }
     private func sendCurrent() {
+        guard sendTask == nil else { return }
         guard model.target != nil else { showDevices = true; return }
-        Task { if await model.send() { model.restoreLastDraft(); syncDraftPresentation() } }
+        let original = model.originalScreenRecording
+        sendTask = Task {
+            defer { sendTask = nil }
+            guard await model.send() else { return }
+            if #available(iOS 27.0, *), let original {
+                let capture = ScreenCaptureSession.shared
+                if capture.files.contains(original) { try? capture.remove(original) }
+            }
+            model.restoreLastDraft()
+            syncDraftPresentation()
+        }
     }
     private func takePhoto() {
         guard !locked, !burst || model.items.count < CaptureBatch.limit(captureBatchLimit) else { return }

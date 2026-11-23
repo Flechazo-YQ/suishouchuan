@@ -6,6 +6,22 @@ import XCTest
 #endif
 
 final class ProtocolTests: XCTestCase {
+    func testMediaDeadlineDoesNotWaitForAFrameworkCallback() async {
+        let started = Date()
+        do {
+            _ = try await withMediaDeadline(seconds: 0, timeout: .message("timed out")) {
+                await Task.detached {
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    return true
+                }.value
+            }
+            XCTFail("The deadline should win before the callback")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "timed out")
+            XCTAssertLessThan(Date().timeIntervalSince(started), 3)
+        }
+    }
+
     func testOnlyPrivateIPv4Accepted() {
         for value in ["10.0.0.1", "172.16.0.2", "172.31.255.2", "192.168.1.10"] { XCTAssertTrue(isPrivateAddress(value), value) }
         for value in ["127.0.0.1", "8.8.8.8", "172.32.0.1", "192.168.1.999", "10.0.0.1.evil", "::1", "10..0.1", "10.1.1.-1"] { XCTAssertFalse(isPrivateAddress(value), value) }

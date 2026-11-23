@@ -58,8 +58,12 @@ import ActivityKit
     }
     @ViewBuilder private func captureButtons(_ state: ScreenCaptureAttributes.ContentState) -> some View {
         HStack(spacing: 10) {
-            Button(intent: CaptureIslandFrameIntent()) { Label("Capture", systemImage: "rectangle.dashed") }.disabled(state.pending || state.recording || state.count >= (state.batchLimit ?? 10))
-            Button(intent: ToggleScreenRecordingIntent()) { Label(state.recording ? "Stop Recording" : "Record", systemImage: state.recording ? "stop.fill" : "record.circle") }.disabled(state.pending || state.count > 0)
+            if state.pending {
+                Text("Saving…").foregroundStyle(.secondary)
+            } else {
+                Button(intent: CaptureIslandFrameIntent()) { Label("Capture", systemImage: "rectangle.dashed") }.disabled(state.recording || state.count >= (state.batchLimit ?? 10))
+                Button(intent: ToggleScreenRecordingIntent()) { Label(state.recording ? "Stop Recording" : "Record", systemImage: state.recording ? "stop.fill" : "record.circle") }.disabled(state.count > 0)
+            }
             Link(destination: URL(string: "imagebridge://screen")!) {
                 Text("Review").fontWeight(.semibold)
             }
@@ -70,7 +74,9 @@ import ActivityKit
                     Image(systemName: "xmark.circle.fill")
                 }
                 .tint(.red)
-                .accessibilityLabel("Confirm End Screen Capture")
+                .accessibilityLabel(state.pending ? "Confirm Cancel Saving" : "Confirm End Screen Capture")
+            } else if state.pending {
+                Button(intent: RequestStopScreenCaptureIntent()) { Text("Cancel Saving") }.tint(.orange)
             } else {
                 Button(intent: RequestStopScreenCaptureIntent()) {
                     Image(systemName: "xmark.circle")

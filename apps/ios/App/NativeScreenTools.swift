@@ -5,17 +5,21 @@ import AVKit
 struct NativeScreenTools: View {
     @ObservedObject private var capture = ScreenCaptureSession.shared
     @AppStorage("captureBatchLimit") private var captureBatchLimit = CaptureBatch.defaultLimit
-    @State private var importing = false
+    @State private var preparation: Task<Void, Never>?
     @State private var discard = false
     @State private var selected: URL?
     let review: ([URL]) async throws -> Void
+    private var importing: Bool { preparation != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Label("Capture Across Apps", systemImage: "rectangle.dashed.badge.record")
                 .font(.title3.weight(.semibold))
                 .accessibilityAddTraits(.isHeader)
-            if capture.starting { ProgressView("Waiting for screen access…") }
+            if capture.starting {
+                ProgressView("Waiting for screen access…")
+                Button("Cancel", role: .cancel) { Task { await capture.stop() } }
+            }
             else if capture.active {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) { activeStatus; Spacer(minLength: 0); stopButton }
@@ -32,6 +36,10 @@ struct NativeScreenTools: View {
             }
             if !capture.message.isEmpty { Text(capture.message).font(.footnote).foregroundColor(.secondary).accessibilityIdentifier("screenCaptureStatus") }
             if capture.pendingShot || capture.finishing { ProgressView(capture.pendingShot ? "Swipe up on the Dynamic Island to collapse it…" : "Saving recording…") }
+            if capture.finishing {
+                Button("Cancel Saving", role: .destructive) { Task { await capture.stop() } }
+                    .frame(minHeight: 44)
+            }
             if !capture.files.isEmpty {
                 Divider()
                 Text(capture.isVideo ? "Recording Ready" : "Screenshots (\(capture.files.count))").font(.headline)
@@ -43,6 +51,7 @@ struct NativeScreenTools: View {
                                     MediaThumbnail(item: MediaItem(url: file, mime: capture.isVideo ? "video/mp4" : "image/jpeg"), maxPixelSize: 240).scaledToFit().frame(width: 85, height: 110)
                                 }.accessibilityLabel("Preview Capture")
                                 Button("Remove") { do { try capture.remove(file); if selected == file { selected = nil } } catch { capture.message = error.localizedDescription } }
+                                    .disabled(importing)
                             }
                         }
                     }
@@ -53,20 +62,30 @@ struct NativeScreenTools: View {
                 }
                 HStack {
                     Button(importing ? "Preparing…" : "Review and Send") {
-                        importing = true
-                        Task {
+                        let files = capture.files
+                        let keepOriginal = capture.isVideo
+                        preparation = Task {
+                            defer { preparation = nil }
                             await capture.stop()
-                            do { try await review(capture.files); try capture.clearImported() }
-                            catch { capture.message = error.localizedDescription }
-                            importing = false
+                            do {
+                                try Task.checkCancellation()
+                                try await review(files)
+                                if !keepOriginal { try capture.clearImported() }
+                            } catch is CancellationError {
+                                capture.message = String(localized: "Preparation canceled. Your captures are ready to retry.")
+                            } catch {
+                                capture.message = error.localizedDescription
+                            }
                         }
                     }.buttonStyle(.borderedProminent).disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
                     Button("Clear", role: .destructive) { discard = true }.disabled(importing || capture.pendingShot || capture.recording || capture.finishing)
                 }
+                if let preparation { Button("Cancel Preparing", role: .cancel) { preparation.cancel() } }
                 Text("Tap Send in the preview to transfer your captures. Your camera batch stays in CommandC.").font(.footnote).foregroundColor(.secondary)
             }
             captureGuide
         }
+        .onDisappear { preparation?.cancel() }
         .alert("Clear these captures?", isPresented: $discard) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) { do { try capture.clearImported(); selected = nil } catch { capture.message = error.localizedDescription } }

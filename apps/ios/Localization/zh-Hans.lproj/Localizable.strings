@@ -194,6 +194,17 @@
 "Video ready" = "待发视频";
 "View item %lld" = "查看第 %lld 张";
 "Up to 100 MB per batch." = "每组最大 100 MB。";
+"Cancel Saving" = "取消保存";
+"Cancel Preparing" = "取消准备";
+"Cancel Sending" = "取消发送";
+"Confirm Cancel Saving" = "确认取消保存";
+"No video was saved. You can start a new capture." = "没有保存到视频，可以重新开始采集。";
+"Preparation canceled. Your captures are ready to retry." = "准备已取消，屏幕素材已保留，可以重试。";
+"Recording save canceled." = "已取消保存录屏。";
+"Saving the recording timed out. You can start a new capture." = "保存录屏超时，可以重新开始采集。";
+"Sending canceled. Your items are ready to retry." = "发送已取消，素材已保留，可以重试。";
+"Sending timed out. Your items are ready to retry." = "发送超时，素材已保留，可以重试。";
+"Video preparation timed out. Try opening the recording again." = "准备视频超时，请重新打开录屏重试。";
 "Update CtrlV or CommandV to send more than 10 images together. Your batch is still here." = "请先更新电脑上的 CtrlV 或 CommandV，再发送超过 10 张的图集。当前素材已保留。";
 "Wait for the capture to finish." = "请等待采集完成";
 "Waiting for screen access…" = "等待系统授权…";

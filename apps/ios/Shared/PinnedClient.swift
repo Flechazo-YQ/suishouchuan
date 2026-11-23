@@ -25,6 +25,15 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
     }
 
     func send(_ payload: UploadPayload, requestId: UUID) async throws -> TransferResult {
+        try await withMediaDeadline(
+            seconds: 75,
+            timeout: BridgeError.message(String(localized: "Sending timed out. Your items are ready to retry."))
+        ) {
+            try await self.sendPayload(payload, requestId: requestId)
+        }
+    }
+
+    private func sendPayload(_ payload: UploadPayload, requestId: UUID) async throws -> TransferResult {
         if payload.imageCount > CaptureBatch.defaultLimit {
             struct Capabilities: Decodable { let maxBatchImages: Int }
             let maxImages: Int
@@ -52,6 +61,7 @@ final class PinnedClient: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
         defer { session.invalidateAndCancel() }
         var lastError: Error?
         for address in addresses where isPrivateAddress(address) {
+            try Task.checkCancellation()
             guard (1...65535).contains(port), let url = URL(string: "https://\(address):\(port)\(route)") else { continue }
             var request = URLRequest(url: url)
             request.httpMethod = method

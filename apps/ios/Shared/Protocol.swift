@@ -12,6 +12,38 @@ enum BridgeError: LocalizedError {
     }
 }
 
+func withMediaDeadline<Value: Sendable>(
+    seconds: UInt64,
+    timeout: BridgeError,
+    discardLateValue: @escaping @Sendable (Value) -> Void = { _ in },
+    operation: @escaping @Sendable () async throws -> Value
+) async throws -> Value {
+    let (results, continuation) = AsyncStream<Result<Value, Error>>.makeStream(bufferingPolicy: .bufferingOldest(1))
+    let work = Task {
+        do {
+            let value = try await operation()
+            if Task.isCancelled { discardLateValue(value); return }
+            switch continuation.yield(.success(value)) {
+            case .enqueued: break
+            default: discardLateValue(value)
+            }
+        } catch {
+            continuation.yield(.failure(error))
+        }
+    }
+    let deadline = Task {
+        do { try await Task.sleep(nanoseconds: seconds * 1_000_000_000) } catch { return }
+        continuation.yield(.failure(timeout))
+    }
+    defer { continuation.finish(); work.cancel(); deadline.cancel() }
+    // Returning does not depend on a framework callback honoring cancellation.
+    var iterator = results.makeAsyncIterator()
+    guard let result = await iterator.next() else { throw CancellationError() }
+    let value = try result.get()
+    if Task.isCancelled { discardLateValue(value); throw CancellationError() }
+    return value
+}
+
 struct Invitation: Codable {
     let v: Int
     let deviceId: String
@@ -62,7 +94,7 @@ struct PairedDevice: Codable, Identifiable {
     let token: String
 }
 
-struct TransferResult: Decodable {
+struct TransferResult: Decodable, Sendable {
     let requestId: String?
     let status: String?
     let error: String?
@@ -75,7 +107,7 @@ enum CaptureBatch {
     static func limit(_ value: Int) -> Int { min(max(1, value), maximum) }
 }
 
-struct MediaItem: Identifiable {
+struct MediaItem: Identifiable, Sendable {
     let id: UUID
     let url: URL
     let mime: String
@@ -83,7 +115,7 @@ struct MediaItem: Identifiable {
     init(url: URL, mime: String, id: UUID = UUID()) { self.url = url; self.mime = mime; self.id = id }
 }
 
-struct UploadPayload {
+struct UploadPayload: Sendable {
     let file: URL
     let route: String
     let mime: String

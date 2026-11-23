@@ -3,6 +3,25 @@ import Combine
 import UIKit
 import CoreImage
 import ActivityKit
+
+@available(iOS 27.0, *)
+@MainActor private final class RecordingSaveWatchdog {
+    private var task: Task<Void, Never>?
+
+    func arm(after delay: Duration = .seconds(12), expire: @escaping @MainActor () -> Void) {
+        cancel()
+        task = Task {
+            do { try await Task.sleep(for: delay) } catch { return }
+            expire()
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+    }
+}
+
 #if targetEnvironment(simulator)
 // ScreenCaptureKit ships only in the device SDK; simulator tests cover the entry and transfer flow.
 @available(iOS 27.0, *)
@@ -11,13 +30,24 @@ import ActivityKit
     @Published var message = ""
     @Published private(set) var active = false
     @Published private(set) var batchLimit = CaptureBatch.defaultLimit
-    let starting = false, recording = false, finishing = false, pendingShot = false
+    @Published private(set) var finishing = false
+    let starting = false, recording = false, pendingShot = false
     let files: [URL] = []
     let seconds = 0
     let isVideo = false
+    private let saveWatchdog = RecordingSaveWatchdog()
     func presentPicker(limit: Int) {
         batchLimit = CaptureBatch.limit(limit)
         #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-stalled-recording") {
+            active = true
+            finishing = true
+            message = ""
+            saveWatchdog.arm(after: .seconds(5)) { [weak self] in
+                self?.finishSaving(String(localized: "Saving the recording timed out. You can start a new capture."))
+            }
+            return
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-screen-capture-active") {
             active = true
             return
@@ -29,7 +59,17 @@ import ActivityKit
     func toggleRecording() async throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func requestStopConfirmation() async {}
     func confirmStop() async {}
-    func stop() async { active = false }
+    func dismissOrphanedActivities() {}
+    func stop() async {
+        if finishing { finishSaving(String(localized: "Recording save canceled.")) }
+        else { active = false }
+    }
+    private func finishSaving(_ result: String) {
+        saveWatchdog.cancel()
+        finishing = false
+        active = false
+        message = result
+    }
     func remove(_ file: URL) throws {}
     func clearImported() throws {}
 }
@@ -54,6 +94,8 @@ import ActivityKit
     private var pendingVideo: URL?
     private var videoStart: Date?
     private var timer: Timer?
+    private let saveWatchdog = RecordingSaveWatchdog()
+    private var saveBackground = UIBackgroundTaskIdentifier.invalid
     private var activity: Activity<ScreenCaptureAttributes>?
     private var generation = UUID()
     private var shot: (id: UUID, task: Task<Void, Never>, background: UIBackgroundTaskIdentifier)?
@@ -81,7 +123,7 @@ import ActivityKit
     }
 
     func presentPicker(limit: Int) {
-        guard !starting, !active else { return }
+        guard !starting, !active, !finishing else { return }
         batchLimit = max(CaptureBatch.limit(limit), min(files.count, CaptureBatch.maximum))
         #if targetEnvironment(simulator)
         message = String(localized: "Cross-app screen capture is available on an iPhone.")
@@ -97,22 +139,33 @@ import ActivityKit
     }
 
     fileprivate func begin(_ filter: SCContentFilter) async {
-        guard !active else { return }
-        starting = false
+        guard starting, !active, stream == nil else { return }
         let configuration = SCStreamConfiguration()
+        let next = SCStream(filter: filter, configuration: configuration, delegate: observer)
+        stream = next
         do {
-            let next = SCStream(filter: filter, configuration: configuration, delegate: observer)
             try next.addStreamOutput(observer, type: .screen, sampleHandlerQueue: .main)
             try await next.startCapture()
-            stream = next; active = true; generation = UUID(); shotFailed = false
+            guard stream === next else { try? await next.stopCapture(); return }
+            starting = false; active = true; generation = UUID(); shotFailed = false
             message = String(localized: "Capture is ready. Switch apps, then press and hold the Dynamic Island or Action button.")
             startActivity()
-        } catch { fail(error); deactivatePicker() }
+        } catch {
+            guard stream === next else { return }
+            fail(error)
+            resetCapture()
+        }
     }
 
-    fileprivate func receive(_ frame: CVPixelBuffer) { if active { latestFrame = frame } }
+    fileprivate func receive(_ frame: CVPixelBuffer, from source: SCStream) {
+        if active, stream === source { latestFrame = frame }
+    }
     fileprivate func fail(_ error: Error) { starting = false; message = error.localizedDescription }
-    fileprivate func cancelled() { starting = false; message = String(localized: "Screen capture cancelled."); deactivatePicker() }
+    fileprivate func cancelled() {
+        guard starting else { return }
+        message = String(localized: "Screen capture cancelled.")
+        resetCapture()
+    }
     private func deactivatePicker() { SCContentSharingPicker.shared.remove(observer); SCContentSharingPicker.shared.isActive = false }
 
     func requestFrame(after delay: Duration = .milliseconds(1500)) throws {
@@ -202,25 +255,50 @@ import ActivityKit
     }
 
     private func endRecording() throws {
-        guard let output, let stream, !finishing else { return }
-        try stream.removeRecordingOutput(output)
-        self.output = nil; recording = false; finishing = true; timer?.invalidate(); timer = nil
+        guard let output, let stream, recording else { return }
+        beginSaving(output)
+        do { try stream.removeRecordingOutput(output) }
+        catch { recordingFinished(output, error: error); throw error }
+    }
+
+    private func beginSaving(_ output: SCRecordingOutput) {
+        recording = false
+        finishing = true
+        timer?.invalidate()
+        timer = nil
+        let timedOut = BridgeError.message(String(localized: "Saving the recording timed out. You can start a new capture."))
+        saveBackground = UIApplication.shared.beginBackgroundTask(withName: "CommandC save recording") { [weak self, weak output] in
+            Task { @MainActor in
+                if let output { self?.recordingFinished(output, error: timedOut) }
+            }
+        }
+        saveWatchdog.arm { [weak self, weak output] in
+            if let output { self?.recordingFinished(output, error: timedOut) }
+        }
         Task { await updateActivity() }
     }
 
-    fileprivate func recordingFinished(_ error: Error? = nil) {
-        timer?.invalidate(); timer = nil; output = nil; recording = false; finishing = false
-        if let error { fail(error); if let pendingVideo { try? FileManager.default.removeItem(at: pendingVideo) } }
-        else if let file = pendingVideo {
-            do { try persist([file]); files = [file]; message = String(localized: "Recording saved. Tap Review, then send it from the preview.") }
-            catch { fail(error) }
+    fileprivate func recordingFinished(_ finishedOutput: SCRecordingOutput, error: Error? = nil) {
+        guard output === finishedOutput else { return }
+        let file = pendingVideo
+        defer { resetCapture() }
+        if let error {
+            if let file { try? FileManager.default.removeItem(at: file) }
+            message = error.localizedDescription
+        } else if let file {
+            do {
+                guard (try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) > 0 else {
+                    throw BridgeError.message(String(localized: "No video was saved. You can start a new capture."))
+                }
+                files = [file]
+                try persist(files)
+                message = String(localized: "Recording saved. Tap Review, then send it from the preview.")
+            } catch { fail(error) }
         }
-        pendingVideo = nil
-        Task { await stop() }
     }
 
     func requestStopConfirmation() async {
-        guard active, !finishing else { return }
+        guard active || finishing else { dismissOrphanedActivities(); return }
         stopConfirmationTask?.cancel()
         let deadline = Date().addingTimeInterval(8)
         stopConfirmationDeadline = deadline
@@ -236,28 +314,62 @@ import ActivityKit
     }
 
     func confirmStop() async {
-        guard let deadline = stopConfirmationDeadline, deadline > Date(), active else { return }
+        guard let deadline = stopConfirmationDeadline, deadline > Date(), active || finishing else {
+            dismissOrphanedActivities()
+            return
+        }
         await stop()
     }
 
     func stop() async {
-        guard !finishing else { return }
+        if finishing, let output {
+            recordingFinished(output, error: BridgeError.message(String(localized: "Recording save canceled.")))
+        } else if recording {
+            do { try endRecording() } catch { fail(error) }
+        } else {
+            resetCapture()
+        }
+    }
+
+    func dismissOrphanedActivities() {
+        let orphaned = Activity<ScreenCaptureAttributes>.activities.filter { $0.id != activity?.id }
+        for previous in orphaned {
+            Task { await previous.end(nil, dismissalPolicy: .immediate) }
+        }
+    }
+
+    private func resetCapture() {
+        saveWatchdog.cancel()
         stopConfirmationTask?.cancel()
         stopConfirmationTask = nil
         stopConfirmationDeadline = nil
-        if recording { do { try endRecording() } catch { fail(error) }; return }
+        timer?.invalidate()
+        timer = nil
+        videoStart = nil
+        output = nil; pendingVideo = nil; recording = false; finishing = false
         generation = UUID()
         if let shot { shot.task.cancel(); clearShot(shot.id) }
         pendingShot = false; starting = false; active = false; latestFrame = nil
-        if let stream { try? await stream.stopCapture() }
-        stream = nil; deactivatePicker()
-        if let activity { await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .immediate) }
+        let oldStream = stream
+        let oldActivity = activity
+        stream = nil
         activity = nil
+        deactivatePicker()
+        if let oldStream { Task { try? await oldStream.stopCapture() } }
+        if let oldActivity { Task { await oldActivity.end(nil, dismissalPolicy: .immediate) } }
+        if saveBackground != .invalid {
+            UIApplication.shared.endBackgroundTask(saveBackground)
+            saveBackground = .invalid
+        }
     }
 
-    fileprivate func streamStopped(_ error: Error) {
-        active = false; starting = false; latestFrame = nil; generation = UUID(); fail(error)
-        if !recording && !finishing { Task { await stop() } }
+    fileprivate func streamStopped(_ source: SCStream, error: Error) {
+        guard stream === source else { return }
+        if let output {
+            message = error.localizedDescription
+            if !finishing { beginSaving(output) }
+        }
+        else { fail(error); resetCapture() }
     }
 
     func remove(_ file: URL) throws {
@@ -296,13 +408,13 @@ private final class ScreenCaptureObserver: NSObject, SCContentSharingPickerObser
     func contentSharingPicker(_ picker: SCContentSharingPicker, didUpdateWith filter: SCContentFilter, for stream: SCStream?) { Task { @MainActor in await owner?.begin(filter) } }
     func contentSharingPicker(_ picker: SCContentSharingPicker, didCancelFor stream: SCStream?) { Task { @MainActor in owner?.cancelled() } }
     func contentSharingPickerStartDidFailWithError(_ error: Error) { Task { @MainActor in owner?.fail(error) } }
-    func stream(_ stream: SCStream, didStopWithError error: Error) { Task { @MainActor in owner?.streamStopped(error) } }
+    func stream(_ stream: SCStream, didStopWithError error: Error) { Task { @MainActor in owner?.streamStopped(stream, error: error) } }
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sampleBuffer.isValid, let buffer = sampleBuffer.imageBuffer else { return }
-        Task { @MainActor in owner?.receive(buffer) }
+        Task { @MainActor in owner?.receive(buffer, from: stream) }
     }
     func recordingOutputDidStartRecording(_ recordingOutput: SCRecordingOutput) {}
-    func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) { Task { @MainActor in owner?.recordingFinished() } }
-    func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: Error) { Task { @MainActor in owner?.recordingFinished(error) } }
+    func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) { Task { @MainActor in owner?.recordingFinished(recordingOutput) } }
+    func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: Error) { Task { @MainActor in owner?.recordingFinished(recordingOutput, error: error) } }
 }
 #endif

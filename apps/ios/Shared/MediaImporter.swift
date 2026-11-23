@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 import ImageIO
 import UniformTypeIdentifiers
-import AVFoundation
+@preconcurrency import AVFoundation
 
 enum MediaImporter {
     static func directory() throws -> URL {
@@ -79,13 +79,44 @@ enum MediaImporter {
     }
 
     static func video(_ input: URL, into directory: URL) async throws -> MediaItem {
+        let output = directory.appendingPathComponent(UUID().uuidString + ".mp4")
+        do {
+            return try await withMediaDeadline(
+                seconds: 45,
+                timeout: BridgeError.message(String(localized: "Video preparation timed out. Try opening the recording again.")),
+                discardLateValue: { (item: MediaItem) in try? FileManager.default.removeItem(at: item.url) }
+            ) {
+                try await convertVideo(input, output: output)
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: output)
+            throw error
+        }
+    }
+
+    private static func convertVideo(_ input: URL, output: URL) async throws -> MediaItem {
         let asset = AVURLAsset(url: input)
-        let duration = try await asset.load(.duration).seconds
+        let duration = try await withTaskCancellationHandler {
+            try await asset.load(.duration).seconds
+        } onCancel: {
+            asset.cancelLoading()
+        }
+        try Task.checkCancellation()
         guard duration.isFinite, duration > 0, duration <= 30.1 else { throw BridgeError.message(String(localized: "Choose a video up to 30 seconds long.")) }
         guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1280x720) else { throw BridgeError.message(String(localized: "Couldn’t convert the selected video.")) }
-        let output = directory.appendingPathComponent(UUID().uuidString + ".mp4")
         exporter.outputURL = output; exporter.outputFileType = .mp4; exporter.shouldOptimizeForNetworkUse = true
-        await withCheckedContinuation { continuation in exporter.exportAsynchronously { continuation.resume() } }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else { continuation.resume(); return }
+                exporter.exportAsynchronously { continuation.resume() }
+            }
+        } onCancel: {
+            exporter.cancelExport()
+        }
+        if Task.isCancelled {
+            try? FileManager.default.removeItem(at: output)
+            throw CancellationError()
+        }
         guard exporter.status == .completed else { try? FileManager.default.removeItem(at: output); throw BridgeError.message(exporter.error?.localizedDescription ?? String(localized: "Video conversion failed.")) }
         let item = MediaItem(url: output, mime: "video/mp4")
         guard item.bytes <= 100_000_000 else { try? FileManager.default.removeItem(at: output); throw BridgeError.message(String(localized: "The converted video exceeds 100 MB.")) }

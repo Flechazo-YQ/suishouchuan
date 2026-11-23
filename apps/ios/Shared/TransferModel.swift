@@ -8,6 +8,7 @@ struct TransferDraft: Identifiable {
     let items: [MediaItem]
     let source: MaterialSource
     let requestId: UUID
+    let originalScreenRecording: URL?
     var id: UUID { requestId }
     var title: String { items.first?.mime == "video/mp4" ? String(localized: "Video ready") : String(localized: "Photos ready: \(items.count)") }
 }
@@ -25,6 +26,7 @@ struct TransferDraft: Identifiable {
     private let discovery = Discovery()
     private(set) var directory: URL?
     private(set) var requestId = UUID()
+    private(set) var originalScreenRecording: URL?
     private let upload: (PairedDevice, UploadPayload, UUID) async throws -> TransferResult
     var target: PairedDevice? { devices.first { $0.id == selectedId } }
     init(loadDevices: Bool = true, upload: @escaping (PairedDevice, UploadPayload, UUID) async throws -> TransferResult = { device, payload, id in
@@ -83,12 +85,17 @@ struct TransferDraft: Identifiable {
         var imported: [MediaItem] = []
         do {
             for file in files {
+                try Task.checkCancellation()
                 if file.pathExtension.lowercased() == "mp4" { imported.append(try await MediaImporter.video(file, into: directory)) }
                 else { imported.append(try MediaImporter.image(file, into: directory)) }
             }
+            try Task.checkCancellation()
             try validate(imported)
             beginIndependent(imported.first?.mime == "video/mp4" ? .video : .library)
-            try append(imported); message = String(localized: "Review your captures, then tap Send."); failure = false
+            try append(imported)
+            originalScreenRecording = imported.first?.mime == "video/mp4" ? files.first : nil
+            message = String(localized: "Review your captures, then tap Send.")
+            failure = false
         } catch {
             imported.forEach { try? FileManager.default.removeItem(at: $0.url) }
             throw error
@@ -100,10 +107,12 @@ struct TransferDraft: Identifiable {
         }
         guard all.count <= 1 || all.allSatisfy({ $0.mime != "video/mp4" }) else { throw BridgeError.message(String(localized: "Send or clear the current items first. Videos must be sent individually.")) }
     }
-    private var snapshot: TransferDraft { TransferDraft(items: items, source: source, requestId: requestId) }
+    private var snapshot: TransferDraft {
+        TransferDraft(items: items, source: source, requestId: requestId, originalScreenRecording: originalScreenRecording)
+    }
     private func beginIndependent(_ next: MaterialSource) {
         if !items.isEmpty { savedDrafts.append(snapshot) }
-        items = []; source = next; requestId = UUID()
+        items = []; source = next; requestId = UUID(); originalScreenRecording = nil
     }
     func switchCapture(burst: Bool) {
         guard !busy else { return }
@@ -130,6 +139,7 @@ struct TransferDraft: Identifiable {
     }
     private func restore(_ draft: TransferDraft) {
         items = draft.items; source = draft.source; requestId = draft.requestId
+        originalScreenRecording = draft.originalScreenRecording
     }
     func restoreLastDraft() {
         guard !busy, items.isEmpty, let draft = savedDrafts.popLast() else { return }
@@ -140,7 +150,11 @@ struct TransferDraft: Identifiable {
         if let item = items.first(where: { $0.id == id }) { try? FileManager.default.removeItem(at: item.url) }
         items.removeAll { $0.id == id }; requestId = UUID()
     }
-    func clear() { guard !busy else { return }; items.forEach { try? FileManager.default.removeItem(at: $0.url) }; items = []; requestId = UUID() }
+    func clear() {
+        guard !busy else { return }
+        items.forEach { try? FileManager.default.removeItem(at: $0.url) }
+        items = []; requestId = UUID(); originalScreenRecording = nil
+    }
     func send() async -> Bool {
         guard !busy, let directory else { return false }
         guard let target else { report(BridgeError.message(String(localized: "Open CommandC and scan a QR code to pair a computer first."))); return false }
@@ -154,9 +168,14 @@ struct TransferDraft: Identifiable {
                 let receiverDetail = Bundle.main.preferredLocalizations.first == "zh-Hans" ? result.error : nil
                 throw BridgeError.message(receiverDetail ?? String(localized: "The computer hasn’t copied the items. Keep them and try again."))
             }
-            items.forEach { try? FileManager.default.removeItem(at: $0.url) }; items = []; requestId = UUID()
+            items.forEach { try? FileManager.default.removeItem(at: $0.url) }
+            items = []; requestId = UUID(); originalScreenRecording = nil
             message = String(localized: "Copied. Paste with Ctrl+V on Windows or ⌘V on Mac."); return true
-        } catch { report(error); return false }
+        } catch {
+            if Task.isCancelled { message = String(localized: "Sending canceled. Your items are ready to retry.") }
+            else { report(error) }
+            return false
+        }
     }
     func cleanup() { discovery.stop(); if let directory { try? FileManager.default.removeItem(at: directory) } }
 }
