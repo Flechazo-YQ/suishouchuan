@@ -60,8 +60,24 @@ import ActivityKit
         HStack(spacing: 10) {
             Button(intent: CaptureScreenFrameIntent()) { Label("Capture", systemImage: "rectangle.dashed") }.disabled(state.pending || state.recording || state.count >= 10)
             Button(intent: ToggleScreenRecordingIntent()) { Label(state.recording ? "Stop Recording" : "Record", systemImage: state.recording ? "stop.fill" : "record.circle") }.disabled(state.pending || state.count > 0)
-            Link("Review", destination: URL(string: "imagebridge://screen")!)
-            Button(intent: StopScreenCaptureIntent()) { Image(systemName: "xmark.circle") }.accessibilityLabel("End Screen Capture")
+            Link(destination: URL(string: "imagebridge://screen")!) {
+                Text("Review").fontWeight(.semibold)
+            }
+            .buttonStyle(.borderedProminent)
+            .foregroundStyle(.black)
+            if state.confirmingStop == true {
+                Button(intent: StopScreenCaptureIntent()) {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .tint(.red)
+                .accessibilityLabel("Confirm End Screen Capture")
+            } else {
+                Button(intent: RequestStopScreenCaptureIntent()) {
+                    Image(systemName: "xmark.circle")
+                }
+                .tint(Color(white: 0.76))
+                .accessibilityLabel("End Screen Capture")
+            }
         }.font(.caption).lineLimit(1).minimumScaleFactor(0.85).tint(Color(red: 0.85, green: 0.95, blue: 0.47))
     }
 }

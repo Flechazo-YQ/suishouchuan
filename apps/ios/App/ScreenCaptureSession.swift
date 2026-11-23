@@ -53,6 +53,8 @@ import ActivityKit
     private var generation = UUID()
     private var shot: (id: UUID, task: Task<Void, Never>, background: UIBackgroundTaskIdentifier)?
     private var shotFailed = false
+    private var stopConfirmationDeadline: Date?
+    private var stopConfirmationTask: Task<Void, Never>?
     private let context = CIContext()
     private lazy var observer = ScreenCaptureObserver(owner: self)
     private var directory: URL {
@@ -211,8 +213,32 @@ import ActivityKit
         Task { await stop() }
     }
 
+    func requestStopConfirmation() async {
+        guard active, !finishing else { return }
+        stopConfirmationTask?.cancel()
+        let deadline = Date().addingTimeInterval(8)
+        stopConfirmationDeadline = deadline
+        stopConfirmationTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(8)) }
+            catch { return }
+            guard let self, self.stopConfirmationDeadline == deadline else { return }
+            self.stopConfirmationDeadline = nil
+            self.stopConfirmationTask = nil
+            await self.updateActivity()
+        }
+        await updateActivity()
+    }
+
+    func confirmStop() async {
+        guard let deadline = stopConfirmationDeadline, deadline > Date(), active else { return }
+        await stop()
+    }
+
     func stop() async {
         guard !finishing else { return }
+        stopConfirmationTask?.cancel()
+        stopConfirmationTask = nil
+        stopConfirmationDeadline = nil
         if recording { do { try endRecording() } catch { fail(error) }; return }
         generation = UUID()
         if let shot { shot.task.cancel(); clearShot(shot.id) }
@@ -247,7 +273,7 @@ import ActivityKit
     private var state: ScreenCaptureAttributes.ContentState {
         .init(count: files.count, recording: recording, pending: finishing, startedAt: videoStart,
               message: recording ? String(localized: "Recording · Up to 30 seconds") : shotFailed ? String(localized: "Not saved") : String(localized: "Capture active"),
-              shotFailed: shotFailed)
+              shotFailed: shotFailed, confirmingStop: stopConfirmationDeadline.map { $0 > Date() })
     }
     private func startActivity() {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { message = String(localized: "Capture is ready. Enable Live Activities or use the CommandC shortcut with the Action button."); return }

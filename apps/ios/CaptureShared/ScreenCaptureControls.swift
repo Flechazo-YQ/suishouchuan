@@ -14,6 +14,7 @@ struct ScreenCaptureAttributes: ActivityAttributes {
         var startedAt: Date?
         var message: String
         var shotFailed: Bool?
+        var confirmingStop: Bool?
     }
 }
 
@@ -49,13 +50,28 @@ struct ToggleScreenRecordingIntent: LiveActivityIntent {
 }
 
 @available(iOS 27.0, *)
+struct RequestStopScreenCaptureIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Request to End CommandC Screen Capture"
+    static var openAppWhenRun = false
+    static var supportedModes: IntentModes { .background }
+    func perform() async throws -> some IntentResult {
+        #if COMMANDV_APP
+        await ScreenCaptureSession.shared.requestStopConfirmation()
+        #else
+        throw CaptureRoutingError()
+        #endif
+        return .result()
+    }
+}
+
+@available(iOS 27.0, *)
 struct StopScreenCaptureIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "End CommandC Screen Capture"
     static var openAppWhenRun = false
     static var supportedModes: IntentModes { .background }
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
-        await ScreenCaptureSession.shared.stop()
+        await ScreenCaptureSession.shared.confirmStop()
         #else
         throw CaptureRoutingError()
         #endif
