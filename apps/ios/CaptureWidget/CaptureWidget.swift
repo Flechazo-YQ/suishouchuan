@@ -33,17 +33,22 @@ import ActivityKit
                 }
                 DynamicIslandExpandedRegion(.bottom) { captureButtons(context.state) }
             } compactLeading: {
-                if context.state.recording { Image(systemName: "record.circle.fill").foregroundStyle(.red) }
-                else {
+                if context.state.recording, let start = context.state.startedAt {
+                    Text(start, style: .timer).font(.caption2.monospacedDigit()).lineLimit(1)
+                } else {
+                    captureFeedback(context.state)
+                }
+            } compactTrailing: {
+                if context.state.recording {
+                    Text("REC").font(.caption2).lineLimit(1).foregroundStyle(.red)
+                } else {
                     ZStack {
-                        Image(systemName: "rectangle.dashed").foregroundStyle(.green)
+                        Image(systemName: "record.circle").foregroundStyle(.secondary)
                             .opacity(context.state.collectingShot == true ? 0 : 1)
+                            .accessibilityLabel("Record")
                         CaptureReceipt(collecting: context.state.collectingShot == true)
                     }
                 }
-            } compactTrailing: {
-                if context.state.recording { Text("REC").font(.caption2).lineLimit(1) }
-                else { captureFeedback(context.state) }
             } minimal: {
                 if context.state.recording { Image(systemName: "record.circle.fill").foregroundStyle(.red) }
                 else {

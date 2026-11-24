@@ -17,20 +17,22 @@ import ActivityKit
         current = try CaptureActivity.request(attributes: ScreenCaptureAttributes(), content: ActivityContent(state: state, staleDate: nil), pushType: nil)
     }
 
-    func update(_ state: ScreenCaptureAttributes.ContentState) async {
+    func update(_ state: ScreenCaptureAttributes.ContentState, alert: AlertConfiguration? = nil) async {
         var display = state
         display.collectingShot = collectingShot ? true : nil
-        await current?.update(ActivityContent(state: display, staleDate: nil))
+        await current?.update(ActivityContent(state: display, staleDate: nil), alertConfiguration: alert)
     }
 
-    func acknowledgeShot(state: () -> ScreenCaptureAttributes.ContentState) async {
+    func acknowledgeShot(showResult: Bool = false, state: () -> ScreenCaptureAttributes.ContentState) async {
         guard let activityId = current?.id else { return }
         collectingShot = true
         await update(state())
         try? await Task.sleep(for: .milliseconds(440))
         guard current?.id == activityId else { return }
         collectingShot = false
-        await update(state())
+        let saved = state()
+        let alert = showResult ? AlertConfiguration(title: "CommandC", body: "Screenshots saved: \(saved.count)", sound: .named("ScreenCaptureSaved.caf")) : nil
+        await update(saved, alert: alert)
     }
 
     func dismissCurrent() {
@@ -141,7 +143,7 @@ import ActivityKit
         #endif
         message = String(localized: "Cross-app screen capture is available on an iPhone.")
     }
-    func requestFrame(after delay: Duration = .milliseconds(1500)) throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
+    func requestFrame(after delay: Duration = .milliseconds(1500), showResult: Bool = false) throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func toggleRecording() async throws { throw BridgeError.message(String(localized: "Screen capture requires an iPhone.")) }
     func requestStopConfirmation() async {}
     func confirmStop() async {}
@@ -291,7 +293,7 @@ import ActivityKit
     }
     private func deactivatePicker() { SCContentSharingPicker.shared.remove(observer); SCContentSharingPicker.shared.isActive = false }
 
-    func requestFrame(after delay: Duration = .milliseconds(1500)) throws {
+    func requestFrame(after delay: Duration = .milliseconds(1500), showResult: Bool = false) throws {
         guard !pendingShot else { return }
         guard canCapture else { throw BridgeError.message(active ? String(localized: "Finish recording or review the current batch before taking another screenshot.") : String(localized: "Start screen capture in CommandC first.")) }
         pendingShot = true
@@ -305,10 +307,10 @@ import ActivityKit
                 self.endShotBackground(id)
             }
         }
-        shot = (id, Task { await finishShot(id: id, generation: current, after: delay) }, background)
+        shot = (id, Task { await finishShot(id: id, generation: current, after: delay, showResult: showResult) }, background)
     }
 
-    private func finishShot(id: UUID, generation current: UUID, after delay: Duration) async {
+    private func finishShot(id: UUID, generation current: UUID, after delay: Duration, showResult: Bool) async {
         defer { clearShot(id) }
         do {
             try await Task.sleep(for: delay)
@@ -322,7 +324,7 @@ import ActivityKit
         }
         shotFailed = false
         message = ""
-        await liveActivity.acknowledgeShot { state }
+        await liveActivity.acknowledgeShot(showResult: showResult) { state }
         if generation == current, files.count >= batchLimit {
             clearShot(id)
             resetCapture(keepingReview: true)

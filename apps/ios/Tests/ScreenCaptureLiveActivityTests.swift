@@ -6,6 +6,7 @@ import XCTest
 final class ScreenCaptureLiveActivityTests: XCTestCase {
     @MainActor func testEverySavedScreenshotCollectsBeforeIncreasingTheCount() async throws {
         guard #available(iOS 27.0, *) else { throw XCTSkip("Screen capture requires iOS 27") }
+        XCTAssertNotNil(Bundle.main.url(forResource: "ScreenCaptureSaved", withExtension: "caf"))
         let liveActivity = ScreenCaptureLiveActivity()
         func state(_ count: Int) -> ScreenCaptureAttributes.ContentState {
             .init(count: count, recording: false, pending: false, message: "Capture active")
@@ -27,7 +28,7 @@ final class ScreenCaptureLiveActivityTests: XCTestCase {
         await Task.yield()
 
         for count in 1...3 {
-            await liveActivity.acknowledgeShot { state(count) }
+            await liveActivity.acknowledgeShot(showResult: true) { state(count) }
             try await Task.sleep(for: .milliseconds(600))
         }
 

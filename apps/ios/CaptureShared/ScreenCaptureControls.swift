@@ -48,7 +48,7 @@ struct CaptureIslandFrameIntent: LiveActivityIntent {
 
     func perform() async throws -> some IntentResult {
         #if COMMANDV_APP
-        try await ScreenCaptureSession.shared.requestFrame(after: .seconds(3))
+        try await ScreenCaptureSession.shared.requestFrame(after: .seconds(3), showResult: true)
         #else
         throw CaptureRoutingError()
         #endif
