@@ -126,6 +126,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(start.waitForExistence(timeout: 5))
         start.tap()
         let cancel = app.buttons["Cancel Saving"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
         XCTAssertTrue(cancel.isHittable)
         attach(app, "CommandC recording recovery controls")
         cancel.tap()

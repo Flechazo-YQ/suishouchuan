@@ -110,13 +110,16 @@ import ActivityKit
     private let liveActivity = ScreenCaptureLiveActivity()
     #if DEBUG
     private var simulateLiveActivity: Bool { ProcessInfo.processInfo.arguments.contains("--ui-screen-capture-activity") }
+    private var simulatedStallCount = 0
     #endif
     func presentPicker(limit: Int) {
         batchLimit = CaptureBatch.limit(limit)
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-stalled-recording") {
             active = true
-            simulateSaving()
+            // The first attempt exercises the cancel button even when UI automation runs slowly.
+            simulateSaving(after: simulatedStallCount == 0 ? .seconds(45) : .seconds(5))
+            simulatedStallCount += 1
             return
         }
         if ProcessInfo.processInfo.arguments.contains("--ui-review-recording") {
