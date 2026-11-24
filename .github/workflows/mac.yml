@@ -7,30 +7,43 @@ on:
 permissions:
   contents: read
 jobs:
-  intel:
-    runs-on: macos-15-intel
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x64
+            machine: x86_64
+          - runner: macos-15
+            arch: arm64
+            machine: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      MAC_PACKAGE_ARCH: ${{ matrix.arch }}
+      MAC_MACHINE_ARCH: ${{ matrix.machine }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Build and test the Intel receiver
+      - name: Build and test the native receiver
         working-directory: apps/desktop
         run: |
-          test "$(uname -m)" = x86_64
+          test "$(uname -m)" = "$MAC_MACHINE_ARCH"
           node --version
           npm ci --no-audit --no-fund
-          xcrun swiftc -parse-as-library -O -target x86_64-apple-macos13.0 resources/CommandVMac.swift -o resources/commandv-mac
+          xcrun swiftc -parse-as-library -O -target "${MAC_MACHINE_ARCH}-apple-macos13.0" resources/CommandVMac.swift -o resources/commandv-mac
           xcrun vtool -show-build resources/commandv-mac
           npm test
           npm run build
-          npx --no-install electron-builder --config electron-builder.mac.cjs --mac zip --x64 --publish never
+          npx --no-install electron-builder --config electron-builder.mac.cjs --mac zip "--$MAC_PACKAGE_ARCH" --publish never
       - name: Verify and test the packaged app
         run: |
           bundle=$(find "$PWD/release/macos" -name 'CommandV.app' -type d -maxdepth 3 -print -quit)
           test -n "$bundle"
           codesign --verify --deep --strict "$bundle"
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$bundle/Contents/Info.plist")" = '13.0'
-          test "$(lipo -archs "$bundle/Contents/MacOS/CommandV")" = x86_64
-          test "$(lipo -archs "$bundle/Contents/Resources/commandv-mac")" = x86_64
+          test "$(lipo -archs "$bundle/Contents/MacOS/CommandV")" = "$MAC_MACHINE_ARCH"
+          test "$(lipo -archs "$bundle/Contents/Resources/commandv-mac")" = "$MAC_MACHINE_ARCH"
           xcrun vtool -show-build "$bundle/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
           result="$PWD/release/macos/mac-selftest.json"
           "$bundle/Contents/MacOS/CommandV" --data-dir="$RUNNER_TEMP/commandv-selftest" --self-test="$result" &
@@ -65,7 +78,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: commandv-mac-intel-${{ github.run_number }}
+          name: commandv-mac-${{ matrix.arch }}-${{ github.run_number }}
           path: |
             release/macos/CommandV-*.zip
             release/macos/SHA256SUMS.txt
