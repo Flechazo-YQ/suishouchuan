@@ -5,9 +5,10 @@ import CoreImage
 import ActivityKit
 
 @available(iOS 27.0, *)
-@MainActor private final class ScreenCaptureLiveActivity {
+@MainActor final class ScreenCaptureLiveActivity {
     private typealias CaptureActivity = Activity<ScreenCaptureAttributes>
     private var current: CaptureActivity?
+    private var collectingShot = false
     private var dismissals: [String: (task: Task<Void, Never>, background: UIBackgroundTaskIdentifier)] = [:]
     var isShowing: Bool { current != nil }
 
@@ -17,12 +18,25 @@ import ActivityKit
     }
 
     func update(_ state: ScreenCaptureAttributes.ContentState) async {
-        await current?.update(ActivityContent(state: state, staleDate: nil))
+        var display = state
+        display.collectingShot = collectingShot ? true : nil
+        await current?.update(ActivityContent(state: display, staleDate: nil))
+    }
+
+    func acknowledgeShot(state: () -> ScreenCaptureAttributes.ContentState) async {
+        guard let activityId = current?.id else { return }
+        collectingShot = true
+        await update(state())
+        try? await Task.sleep(for: .milliseconds(440))
+        guard current?.id == activityId else { return }
+        collectingShot = false
+        await update(state())
     }
 
     func dismissCurrent() {
         guard let current else { return }
         self.current = nil
+        collectingShot = false
         dismiss(current)
     }
 
@@ -305,7 +319,7 @@ import ActivityKit
         }
         shotFailed = false
         message = ""
-        await updateActivity()
+        await liveActivity.acknowledgeShot { state }
         if generation == current, files.count >= batchLimit {
             clearShot(id)
             resetCapture(keepingReview: true)

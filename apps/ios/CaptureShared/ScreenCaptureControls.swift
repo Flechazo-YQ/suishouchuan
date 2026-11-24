@@ -17,6 +17,9 @@ struct ScreenCaptureAttributes: ActivityAttributes {
         var confirmingStop: Bool?
         var batchLimit: Int?
         var readyToReview: Bool?
+        var collectingShot: Bool?
+
+        var displayedCount: Int { max(0, count - (collectingShot == true ? 1 : 0)) }
     }
 }
 
