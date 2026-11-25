@@ -201,18 +201,52 @@ function Screen() {
     ]);
   }
   const feedback = error || state.sharedError || notice;
+  const previewing = !!(photo || reviewPhoto);
+  const previewTitle = reviewPhoto ? '图集预览' : video ? '视频预览' : '照片预览';
+  const previewDetails = reviewPhoto
+    ? `第 ${Math.min(reviewIndex, photos.length - 1) + 1} 张 · 共 ${photos.length} 张`
+    : photo && `${photo.width} × ${photo.height} · ${(photo.bytes / 1024 / 1024).toFixed(1)} MB${photo.durationMs ? ` · ${(photo.durationMs / 1000).toFixed(1)} 秒` : ''}`;
+  const captureHint = recording ? '松手结束录像' : batchMode ? `已拍 ${photos.length} / 10 张` : '轻点拍照，长按录像';
+  const connected = target && connections[target.deviceId] === true;
   useEffect(() => () => {
     const current = shelfRef.current;
     for (const item of [current.active, ...current.saved]) for (const media of draftFiles(item)) bridge.discard(media.path);
     const pending = waiting.current;
     if (pending) for (const media of 'images' in pending ? pending.images : [pending]) bridge.discard(media.path);
   }, []);
-  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/>
+  return <SafeAreaView style={s.safe}>
+    <StatusBar barStyle="light-content"/>
     <View style={s.top}>
-      {photo ? <Pressable onPress={retake} disabled={busy} style={s.topAction} accessibilityRole="button" accessibilityLabel="重新拍摄"><Text style={s.cross}>×</Text></Pressable> :
-        <Pressable disabled={busy} onPress={() => setDevices(true)} style={s.deviceLabel} accessibilityRole="button"><View style={[s.dot, target && connections[target.deviceId] && s.pairedDot]}/><View style={s.deviceText}><Text style={s.deviceName} numberOfLines={1}>{target?.name || '未配置电脑'}</Text><Text style={s.deviceIp}>{target ? connectionText(target.deviceId) : '轻触连接电脑'}</Text></View></Pressable>}
-      {photos.length > 0 ? <Pressable disabled={busy} onPress={confirmGroup} style={[s.sendGroup, busy && {opacity: .5}]} accessibilityRole="button" accessibilityLabel={reviewing ? '确认并发送 ' + photos.length + ' 张图片' : '查看 ' + photos.length + ' 张图片'} accessibilityState={{disabled: busy, busy}}><Text style={s.sendGroupText}>{busy ? '处理中…' : reviewing ? '确认并发送' : '查看 ' + photos.length + ' 张'}</Text></Pressable> : photo ? <Pressable onPress={confirmSend} disabled={busy} style={s.topAction} accessibilityRole="button" accessibilityLabel="确认上传"><Text style={s.check}>✓</Text></Pressable> :
-        <Pressable disabled={busy} onPress={() => setDevices(true)} style={s.topAction} accessibilityRole="button" accessibilityLabel="扫码配对电脑"><View style={s.scanIcon}><View style={s.scanLine}/></View></Pressable>}
+      {previewing ? <>
+        <Pressable onPress={photo ? retake : () => setReviewing(false)} disabled={busy} style={s.topAction}
+          accessibilityRole="button" accessibilityLabel={photo ? '重新拍摄' : '返回取景'}>
+          <Text style={s.cross}>×</Text>
+        </Pressable>
+        <Text style={s.previewTitle} numberOfLines={1} accessibilityRole="header">{previewTitle}</Text>
+        <Pressable onPress={photo ? confirmSend : confirmGroup} disabled={busy} style={[s.primaryAction, busy && s.disabled]}
+          accessibilityRole="button" accessibilityLabel={photo ? '发送素材' : `确认并发送 ${photos.length} 张图片`} accessibilityState={{busy, disabled: busy}}>
+          <Text style={s.primaryText}>{busy ? '处理中…' : '发送'}</Text>
+        </Pressable>
+      </> : <>
+        <Pressable disabled={busy} onPress={() => setDevices(true)} style={s.deviceLabel} accessibilityRole="button">
+          <View style={s.deviceBadge}><View style={s.monitor}/><View style={s.monitorBase}/></View>
+          <View style={s.deviceText}>
+            <Text style={s.deviceName} numberOfLines={1}>{target?.name || '连接电脑'}</Text>
+            <View style={s.connectionRow}>
+              <View style={[s.dot, connected && s.pairedDot]}/>
+              <Text style={s.deviceStatus} numberOfLines={1}>{target ? connectionText(target.deviceId) : '扫码配对后可发送'}</Text>
+            </View>
+          </View>
+        </Pressable>
+        {photos.length > 0 ? <Pressable disabled={busy} onPress={confirmGroup} style={[s.primaryAction, busy && s.disabled]}
+          accessibilityRole="button" accessibilityLabel={`查看 ${photos.length} 张图片`}>
+          <Text style={s.primaryText}>查看 {photos.length} 张</Text>
+        </Pressable> : <Pressable disabled={busy} onPress={() => setDevices(true)} style={[s.scanAction, busy && s.disabled]}
+          accessibilityRole="button" accessibilityLabel="扫码配对电脑">
+          <View style={s.scanIcon}><View style={s.scanLine}/></View>
+          <Text style={s.scanText}>扫码</Text>
+        </Pressable>}
+      </>}
     </View>
     <View style={s.viewfinder} {...modeMotion.panHandlers}>
       {!photo && !reviewPhoto && <Animated.View style={[s.fill, modeMotion.pageStyle]}>
@@ -221,26 +255,114 @@ function Screen() {
       </Animated.View>}
       {reviewPhoto && <Image style={s.fill} source={{uri: reviewPhoto.uri}} resizeMode="contain" accessibilityLabel={'图集预览第 ' + (Math.min(reviewIndex, photos.length - 1) + 1) + ' 张'}/>}
       {photo && (video ? <Video style={s.fill} path={photo.path}/> : <Image style={s.fill} source={{uri: photo.uri}} resizeMode="contain" accessibilityLabel="拍摄预览"/>)}
-      {!allowed && !photo && !reviewPhoto && <View style={s.permission}><Text style={s.permissionTitle}>让眼前，即刻到电脑</Text><Text style={s.permissionBody}>允许使用相机后即可拍摄</Text><Pressable style={s.permissionButton} onPress={() => void run(async () => {await permission(true); setAllowed(true);})}><Text style={s.permissionButtonText}>开启相机</Text></Pressable><Pressable style={s.settingsButton} onPress={() => void Linking.openSettings()}><Text style={s.secondaryText}>系统权限设置</Text></Pressable></View>}
+      {!allowed && !previewing && <View style={s.permission}>
+        <View style={s.permissionCard}>
+          <Text style={s.permissionTitle} accessibilityRole="header">开启相机</Text>
+          <Text style={s.permissionBody}>拍照、录制短视频和扫描配对二维码需要相机权限。</Text>
+          <Pressable style={s.primaryAction} onPress={() => void run(async () => {await permission(true); setAllowed(true);})} accessibilityRole="button">
+            <Text style={s.primaryText}>允许相机访问</Text>
+          </Pressable>
+          <Pressable style={s.settingsButton} onPress={() => void Linking.openSettings()} accessibilityRole="button">
+            <Text style={s.secondaryText}>系统权限设置</Text>
+          </Pressable>
+        </View>
+      </View>}
       {recording && <View style={s.recordBadge}><View style={s.recordDot}/><Text style={s.recordTime}>{'00:' + String(seconds).padStart(2, '0')}</Text></View>}
       {busy && !recording && <View style={s.processing}><ActivityIndicator color="white"/><Text style={s.processingText}>正在处理…</Text></View>}
       {!!feedback && <Pressable style={[s.feedback, !!(error || state.sharedError) && s.error]} onPress={() => {setError(''); setNotice('');}} accessibilityLiveRegion="polite"><Text style={s.feedbackText}>{feedback}</Text></Pressable>}
     </View>
-    {shelf.saved.length > 0 && <ScrollView horizontal style={{maxHeight: 52, backgroundColor: '#111'}} contentContainerStyle={{padding: 6, gap: 8}}>{shelf.saved.map((saved, index) => <Pressable key={draftFiles(saved)[0].path} disabled={busy} accessibilityRole="button" accessibilityLabel={'返回待发' + (saved.photo ? '素材' : saved.photos.length + '张图集')} onPress={() => {if (!working.current) {updateShelf(selectDraft(shelfRef.current, index)); setError(''); setNotice('');}}} style={{paddingHorizontal: 12, minHeight: 40, borderRadius: 20, backgroundColor: '#293025', justifyContent: 'center'}}><Text style={{color: '#d9f278', fontSize: 12}}>{saved.photo?.mime === 'video/mp4' ? '待发视频' : '待发 ' + (saved.photo ? 1 : saved.photos.length) + ' 张'} · 查看</Text></Pressable>)}</ScrollView>}
-    {photos.length > 0 && <ScrollView horizontal style={s.strip} contentContainerStyle={s.stripContent}>{photos.map((image, index) => <View key={image.path} style={s.tile}><Pressable disabled={busy} onPress={() => {setReviewIndex(index); setReviewing(true);}} accessibilityLabel={'预览第 ' + (index + 1) + ' 张'}><Image source={{uri: image.uri}} style={s.tileImage}/></Pressable><Text style={s.tileNumber}>{index + 1}</Text><Pressable disabled={busy} style={s.tileRemove} accessibilityLabel={'移除第 ' + (index + 1) + ' 张'} onPress={() => removePhoto(image)}><Text style={s.tileCross}>×</Text></Pressable></View>)}</ScrollView>}
-    <View style={[s.bottom, !photo && !reviewPhoto && s.captureBottom]}>
-      {!photo && !reviewPhoto && <CaptureModeTabs batch={batchMode} disabled={modeLocked || modeMotion.transitioning} progress={modeMotion.progress} onSelect={modeMotion.selectMode}/>}
-      <Text style={s.hint}>{reviewPhoto ? '点缩略图查看 · × 移除 · 右上角确认并发送' : photo ? (video ? '预览静音播放 · 点击右上角确认上传' : '点击右上角确认上传 · 左上角重新拍摄') : batchMode ? '连续点按拍照 · 最多 10 张' : recording ? '松手完成 · 最长 30 秒' : '轻触拍照，按住录像'}</Text>
-      {reviewPhoto && <View style={s.previewMeta}><Text style={s.metaTitle}>预览 {Math.min(reviewIndex, photos.length - 1) + 1} / {photos.length}</Text><Text style={s.metaDetail} numberOfLines={1}>发送到：{target?.name || '未配置电脑'}</Text><Pressable disabled={busy} onPress={() => setReviewing(false)}><Text style={s.secondaryText}>返回取景</Text></Pressable></View>}
-      {!photo && !reviewPhoto && <View style={s.captureRow}>
+    {shelf.saved.length > 0 && <ScrollView horizontal style={s.shelf} contentContainerStyle={s.shelfContent} showsHorizontalScrollIndicator={false}>
+      {shelf.saved.map((saved, index) => <Pressable key={draftFiles(saved)[0].path} disabled={busy} accessibilityRole="button"
+        accessibilityLabel={'返回待发' + (saved.photo ? '素材' : saved.photos.length + '张图集')}
+        onPress={() => {
+          if (working.current) return;
+          updateShelf(selectDraft(shelfRef.current, index));
+          setError('');
+          setNotice('');
+        }} style={s.draftPill}>
+        <Text style={s.draftText}>{saved.photo?.mime === 'video/mp4' ? '待发视频' : `待发 ${saved.photo ? 1 : saved.photos.length} 张`}</Text>
+      </Pressable>)}
+    </ScrollView>}
+    {photos.length > 0 && <ScrollView horizontal style={s.strip} contentContainerStyle={s.stripContent} showsHorizontalScrollIndicator={false}>
+      {photos.map((image, index) => {
+        const selected = reviewPhoto?.path === image.path;
+        return <View key={image.path} style={s.tile}>
+          <Pressable disabled={busy} onPress={() => {setReviewIndex(index); setReviewing(true);}}
+            accessibilityRole="button" accessibilityLabel={`预览第 ${index + 1} 张`} accessibilityState={{selected}}>
+            <Image source={{uri: image.uri}} style={s.tileImage}/>
+            <View pointerEvents="none" style={[s.tileOutline, selected && s.tileSelected]}/>
+            <Text style={s.tileNumber}>{index + 1}</Text>
+          </Pressable>
+          <Pressable disabled={busy} style={s.tileRemove} hitSlop={6} accessibilityRole="button"
+            accessibilityLabel={`移除第 ${index + 1} 张`} onPress={() => removePhoto(image)}>
+            <Text style={s.tileCross}>×</Text>
+          </Pressable>
+        </View>;
+      })}
+    </ScrollView>}
+    {previewing ? <View style={s.previewFooter}>
+      <View style={s.destination}><View style={[s.dot, connected && s.pairedDot]}/>
+        <Text style={s.destinationText} numberOfLines={2}>{target ? `发送到 ${target.name}` : '发送前请先配对电脑'}</Text>
+      </View>
+      <Text style={s.metaDetail}>{previewDetails}{video ? ' · 静音预览' : ''}</Text>
+    </View> : <View style={s.captureBottom}>
+      <CaptureModeTabs batch={batchMode} disabled={modeLocked || modeMotion.transitioning} progress={modeMotion.progress} onSelect={modeMotion.selectMode}/>
+      <View style={s.captureRow}>
         <GalleryButton disabled={busy || recording || modeMotion.transitioning} onPress={() => void run(async () => {await bridge.pickImages();})}/>
         <Pressable accessibilityRole="button" accessibilityLabel={batchMode ? '连拍：拍摄一张并继续取景' : '拍摄：轻触拍照，长按录像'} disabled={!allowed || !ready || (busy && !recording) || modeMotion.transitioning} delayLongPress={350} onPressIn={() => {fingerDown.current = true; longPress.current = false;}} onPressOut={release} onLongPress={batchMode ? undefined : () => void record()} onPress={() => void takePhoto()} style={[s.shutterRing, recording && s.recordRing, (!allowed || !ready || modeMotion.transitioning) && s.shutterDisabled]}><View style={[s.shutter, recording && s.recordShutter]}/></Pressable>
         <ScreenCaptureButton disabled={busy || recording || modeMotion.transitioning} onPress={() => void run(async () => {if (!target) {setDevices(true); return;} await bridge.startScreenCapture();})}/>
-      </View>}
-      {photo && <View style={s.previewMeta}><Text style={s.metaTitle}>{video ? '视频' : '照片'}</Text><Text style={s.metaDetail}>{photo.width} × {photo.height} · {(photo.bytes / 1024 / 1024).toFixed(1)} MB{photo.durationMs ? ' · ' + (photo.durationMs / 1000).toFixed(1) + ' 秒' : ''}</Text></View>}
-      <Text style={s.footer}>{photo || reviewPhoto ? 'CtrlC · 仅局域网传输' : photos.length > 0 ? '可切换相册或截屏 · 这组照片会保留' : '左滑连拍 · 右滑拍摄'}</Text>
-    </View>
-    <Modal visible={devices} transparent animationType="slide" onRequestClose={() => setDevices(false)}><View style={s.backdrop}><SafeAreaView style={s.sheet}><View style={s.sheetTop}><Text style={s.sheetTitle}>连接电脑</Text><Pressable onPress={() => setDevices(false)} style={s.topAction} accessibilityLabel="关闭设备面板"><Text style={s.cross}>×</Text></Pressable></View><Text style={s.sheetDescription}>电脑打开CtrlV，点击「配对手机」。手机扫描二维码后，确认电脑名称。</Text><ScrollView style={s.deviceList}>{state.devices.map(device => <View key={device.deviceId} style={s.deviceRow}><Pressable style={s.deviceChoice} onPress={() => void run(async () => {await bridge.selectDevice(device.deviceId); setDevices(false);})}><Text style={s.deviceName}>{device.name}{device.deviceId === state.defaultId ? '  ✓' : ''}</Text><Text style={s.deviceIp}>{connectionText(device.deviceId)}</Text></Pressable><Pressable style={s.removeButton} onPress={() => Alert.alert('移除电脑', '移除「' + device.name + '」？', [{text: '取消'}, {text: '移除', style: 'destructive', onPress: () => void run(async () => {await bridge.removeDevice(device.deviceId);})}])}><Text style={s.secondaryText}>移除</Text></Pressable></View>)}</ScrollView><Pressable style={s.pairButton} disabled={busy} onPress={() => void run(scan)}><Text style={s.pairText}>扫描配对二维码</Text></Pressable><Pressable style={s.settingsButton} onPress={() => setManual(!manual)}><Text style={s.secondaryText}>手动输入配对内容</Text></Pressable>{manual && <><TextInput style={s.input} value={uri} onChangeText={setUri} autoCapitalize="none" multiline placeholder="imagebridge://pair?data=…" placeholderTextColor="#777"/><Pressable style={s.pairButton} onPress={() => confirmPair(uri.trim())}><Text style={s.pairText}>确认配对</Text></Pressable></>}{!!error && <Text style={s.sheetError}>{error}</Text>}</SafeAreaView></View></Modal>
+      </View>
+      <Text style={s.hint}>{captureHint}</Text>
+    </View>}
+    <Modal visible={devices} transparent animationType="slide" onRequestClose={() => setDevices(false)}>
+      <View style={s.backdrop}>
+        <SafeAreaView edges={['bottom']} style={s.sheet}>
+          <View style={s.sheetTop}>
+            <Text style={s.sheetTitle} accessibilityRole="header">连接电脑</Text>
+            <Pressable onPress={() => setDevices(false)} style={s.topAction} accessibilityRole="button" accessibilityLabel="关闭设备面板">
+              <Text style={s.cross}>×</Text>
+            </Pressable>
+          </View>
+          <ScrollView style={s.sheetScroll} contentContainerStyle={s.sheetContent} keyboardShouldPersistTaps="handled">
+            <Text style={s.sheetDescription}>手机和电脑连同一 Wi-Fi。在 Windows 的 CtrlV 或 Mac 的 CommandV 点「配对手机」，再扫描电脑上的二维码。</Text>
+            <Pressable style={[s.primaryAction, busy && s.disabled]} disabled={busy} onPress={() => void run(scan)} accessibilityRole="button">
+              <Text style={s.primaryText}>扫描配对二维码</Text>
+            </Pressable>
+            {state.devices.length > 0 && <View style={s.deviceList}>
+              <Text style={s.listHeading}>已配对电脑</Text>
+              {state.devices.map(device => {
+                const selected = device.deviceId === state.defaultId;
+                return <View key={device.deviceId} style={[s.deviceRow, selected && s.selectedDevice]}>
+                  <Pressable style={s.deviceChoice} disabled={busy} accessibilityRole="button" accessibilityState={{selected}}
+                    onPress={() => void run(async () => {await bridge.selectDevice(device.deviceId); setDevices(false);})}>
+                    <Text style={s.deviceName} numberOfLines={1}>{device.name}</Text>
+                    <Text style={s.deviceStatus}>{connectionText(device.deviceId)}{selected ? ' · 当前目标' : ''}</Text>
+                  </Pressable>
+                  <Pressable style={s.removeButton} disabled={busy} accessibilityRole="button" accessibilityLabel={`移除 ${device.name}`}
+                    onPress={() => Alert.alert('移除电脑', `移除「${device.name}」？`, [
+                      {text: '取消'}, {text: '移除', style: 'destructive', onPress: () => void run(async () => {await bridge.removeDevice(device.deviceId);})},
+                    ])}>
+                    <Text style={s.secondaryText}>移除</Text>
+                  </Pressable>
+                </View>;
+              })}
+            </View>}
+            <Pressable style={s.settingsButton} onPress={() => setManual(!manual)} accessibilityRole="button" accessibilityState={{expanded: manual}}>
+              <Text style={s.secondaryText}>{manual ? '收起手动输入' : '手动输入配对链接'}</Text>
+            </Pressable>
+            {manual && <>
+              <TextInput style={s.input} value={uri} onChangeText={setUri} autoCapitalize="none" autoCorrect={false}
+                multiline placeholder="imagebridge://pair?data=…" placeholderTextColor="#9da49a" accessibilityLabel="配对链接"/>
+              <Pressable style={[s.primaryAction, (busy || !uri.trim()) && s.disabled]} disabled={busy || !uri.trim()}
+                onPress={() => confirmPair(uri.trim())} accessibilityRole="button">
+                <Text style={s.primaryText}>确认配对</Text>
+              </Pressable>
+            </>}
+            {!!error && <Text style={s.sheetError} accessibilityLiveRegion="polite">{error}</Text>}
+          </ScrollView>
+        </SafeAreaView>
+      </View>
+    </Modal>
   </SafeAreaView>;
 }
 export default function App() {return <SafeAreaProvider><Screen/></SafeAreaProvider>;}

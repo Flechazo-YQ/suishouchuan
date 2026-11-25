@@ -2,7 +2,16 @@
 
 <img src="apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" alt="手机发送端相机图标" width="88" />
 
-在 Android 或 iPhone 上拍照、选图、连续截屏或录制短视频，通过局域网传给电脑。看到「已复制」后，在 Windows 按 **Ctrl+V**，在 Mac 按 **⌘V**，把素材粘贴到支持相应格式的输入框、文档或文件夹。
+手机拍了几张图，想放到电脑的微信聊天、AI 对话或文档里，是不是还要先发给微信文件传输助手，再到电脑上逐张打开、复制、粘贴？图片一多就得来回切窗口，手机相册、微信缓存和电脑下载目录里还可能各留一份，占用存储空间。
+
+用随手传，手机和电脑连上同一 Wi-Fi，扫码配对后就能直接传。手机上拍照、选图、连续截屏或录制短视频，电脑收到后自动写入剪贴板。看到「已复制」后，在支持该素材的目标窗口按 **Ctrl+V** 或 **⌘V**。例如拍一张照片，可以直接粘贴到电脑微信聊天框。用这条路径传图，微信文件传输助手里就少一份中转附件，App 内新拍的素材也无需先存进手机相册。
+
+## 还能帮你省哪些步骤
+
+- **多张图片一次处理。** 连拍几张照片、从相册多选，或连续截几个页面，可以整组发送。在支持多文件粘贴的电脑窗口里，按一次粘贴就能放入整组素材。
+- **截屏和短视频也能直传。** Android 用浮窗跨 App 截图、录屏，支持灵动岛的 iPhone 可以在灵动岛上操作。适合给别人演示操作，或者让 AI 对照多个页面。
+- **配对一次，下次接着用。** 支持 Windows、Mac、Android 和 iPhone。平常打开手机 App 会尝试连回上次使用的电脑，多台电脑也可以切换。
+- **局域网内直连，临时文件可清理。** 传输走本地网络和加密连接，无需注册账号。手机端发送成功后清理临时副本，电脑端有 100 MB 缓存上限，系统相册原图保留。
 
 ## 下载与版本
 
@@ -10,7 +19,7 @@
 | --- | --- | --- |
 | iPhone · CommandC | [App Store 1.1（免费）](https://apps.apple.com/us/app/commandc/id6835768173) | TestFlight 1.1（80），限已获邀请的测试者 |
 | Windows x64 · CtrlV | [0.4.10 EXE](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlV-Setup-0.4.10.exe) | [0.4.12](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/receivers-v0.4.12)，显示手机实际连接状态，支持较大图集 |
-| Android arm64 · CtrlC | [0.4.10 APK](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlC-0.4.10-android-arm64.apk) | [0.4.13](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/android-v0.4.13)，打开 App 时自动连接上次使用的电脑 |
+| Android arm64 · CtrlC | [1.0.0 APK](https://github.com/Flechazo-YQ/suishouchuan/releases/download/android-v1.0.0/CtrlC-1.0.0-android-arm64.apk) · [发布说明](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/android-v1.0.0) | — |
 | Mac · CommandV | 暂无正式版 | [0.4.12 双架构](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/commandv-macos-v0.4.12)，Apple 芯片选 `arm64`，Intel 选 `x64` |
 
 CommandC 1.1 已在中国大陆以外的 App Store 店面上线，中国大陆店面暂不可下载。Mac 预发行包要求 macOS Ventura 13 或更新版本，采用测试签名，尚未经过 Apple 公证。
@@ -36,20 +45,20 @@ CommandC 1.1 已在中国大陆以外的 App Store 店面上线，中国大陆�
 | 设备 | 下载文件 | 安装后做什么 |
 | --- | --- | --- |
 | Windows x64 电脑 | [CtrlV-Setup-0.4.10.exe](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlV-Setup-0.4.10.exe) | 安装并打开「CtrlV」，留在系统托盘 |
-| Android arm64 手机 | [CtrlC-0.4.10-android-arm64.apk](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlC-0.4.10-android-arm64.apk) | 用手机浏览器下载，按系统提示允许该来源安装 |
+| Android arm64 手机 | [CtrlC-1.0.0-android-arm64.apk](https://github.com/Flechazo-YQ/suishouchuan/releases/download/android-v1.0.0/CtrlC-1.0.0-android-arm64.apk) | 用手机浏览器下载，按系统提示允许该来源安装 |
 
 电脑安装完成后打开「CtrlV」，保持托盘运行；Android 手机安装完成后打开「CtrlC」，按提示允许相机权限。让两端连接到可互通的局域网，例如连接同一个家庭 Wi-Fi。电脑端应显示绿色的「正在接收」。
 
 从「随手传」升级可直接覆盖安装，不需要卸载或重新配对。Windows 若弹出防火墙提示，允许 CtrlV 在当前局域网通信；旧规则只绑定旧程序文件，改名后需要允许新程序。
 
-Windows 安装包也内置 APK，可通过电脑配对面板中的局域网下载地址安装。发布页提供 SHA-256 校验文件；下载源码 ZIP 不是安装软件。
+Windows 配对面板的局域网下载链接提供随电脑端打包的 APK。安装 Android 1.0.0 请使用上表的 GitHub APK 链接，发布页提供 SHA-256 校验文件。
 
-Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能不同。下方界面教程对应 Windows 和 Android 正式版。iPhone 操作参见 [CommandC 说明](docs/IOS.md)。
+Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能不同。下方文字按 Android 1.0.0 说明，部分截图来自较早版本。iPhone 操作参见 [CommandC 说明](docs/IOS.md)。
 
 ### 2. 电脑显示二维码，手机扫一扫
 
 1. **电脑**：点击左侧「＋ 配对手机」，出现二维码。
-2. **手机**：点顶部设备名称或右上角扫码图标 →「扫描配对二维码」，对准电脑屏幕。
+2. **手机**：点顶部设备栏或右上角「扫码」，再点「扫描配对二维码」，对准电脑屏幕。
 3. **手机**：核对弹窗中的电脑名称并确认。成功后，首页左上角会显示已配对电脑；以后默认发送到它。
 
 **电脑点击「配对手机」 → 手机点「扫描配对二维码」**（点击图片可查看大图）：
@@ -64,10 +73,10 @@ Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能�
 ### 3. 手机拍照，预览后确认上传
 
 1. 选择「拍摄」模式，轻点底部白色圆形快门。
-2. 查看照片：不满意点左上「×」重拍，满意点右上绿色「✓」。
+2. 查看照片和下方的目标电脑。需要重拍就点左上「×」，准备好后点右上「发送」。
 3. 在弹窗中核对目标电脑，点「确认上传」。等待手机或电脑提示「已复制」。
 
-**① 轻点白色快门拍照 → ② 点右上绿色勾，进入上传确认：**
+**① 轻点白色快门拍照 → ② 点右上发送，进入上传确认。** 下图的右上勾为旧版按钮。
 
 <p>
   <a href="docs/images/phone-camera.png"><img src="docs/images/phone-camera.png" alt="Android 拍摄首页，含九宫格、拍摄和连拍模式、底部白色快门" width="290" /></a>
@@ -80,7 +89,7 @@ Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能�
 
 <img src="docs/images/desktop-received.png" alt="Windows 接收页面，照片卡片显示已复制，并提供重新复制和另存为" width="800" />
 
-想一次发几张？切到「连拍」，连续拍摄后点缩略图查看整组，右上点 **「确认并发送」** 即可；相册多选则在确认选择后自动发送。
+想一次发几张？切到「连拍」，连续拍摄后点缩略图查看整组，右上点 **「发送」** 即可。相册多选在确认选择后自动发送。
 
 ### 4. 回到电脑 AI 输入框，按 Ctrl+V
 
@@ -101,7 +110,7 @@ Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能�
 | 场景 | 原来的常见流程 | 直传流程 |
 | --- | --- | --- |
 | 拍实物照片，让 AI 分析 | 手机拍照 → 微信文件传输助手 → 电脑微信打开图片 → 复制 → 粘贴到 AI | CtrlC 拍照 → 预览并确认上传 → 电脑 AI 输入框 Ctrl+V |
-| 截几个小程序页面，让 AI 对照布局 | 每页系统截图 → 整理相册 → 传到电脑 → 逐张添加附件 | 开启悬浮截屏 → 每页点「截一张」→ 查看整组 →「确认并发送」→ Ctrl+V |
+| 截几个小程序页面，让 AI 对照布局 | 每页系统截图 → 整理相册 → 传到电脑 → 逐张添加附件 | 开启悬浮截屏 → 每页点「截一张」→ 查看整组 →「发送」→ Ctrl+V |
 | 把已有的 10 张图发给 AI | 相册挑图 → 发微信 → 电脑下载整理 → 添加多个附件 | 左下相册图标 → 选 1–10 张并确认 → 自动传送 → Ctrl+V 粘贴独立图片 |
 | 给 Word/WPS 文档配一张图片 | 拍照 → 发微信 → 电脑另存为 → 文档插入图片 | 单张拍摄并上传 → 文档定位光标 → Ctrl+V；不接受图片粘贴时另存为后插入 |
 
@@ -109,9 +118,9 @@ Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能�
 
 ## 手机上的入口
 
-- **拍摄**：短按快门拍照；长按录像，松手结束，最长 30 秒。预览左上「×」重拍，右上「✓」确认上传。
+- **拍摄**：短按快门拍照；长按录像，松手结束，最长 30 秒。预览左上「×」重拍，右上「发送」进入上传确认。
 - **相册**：快门左边的图片图标。选择 1–10 张，确认选择后自动发送；系统相册多选后分享给「CtrlC」也可用。
-- **连拍**：点模式标签，或向左滑动取景画面。连续点按快门，最多 10 张；点缩略图或「查看 N 张」预览，右上「确认并发送」一次完成。
+- **连拍**：点模式标签，或向左滑动取景画面。连续点按快门，最多 10 张；点缩略图或「查看 N 张」预览，右上「发送」一次完成。
 - **截屏 / 录屏**：快门右边的图标。授权后点浮窗「截一张」收集截图，「查看图片」回 App 预览。录屏有计时和停止按钮，最长 30 秒。
 - **连拍中临时做别的事**：已有照片也能进入相册或截屏/录屏。原连拍组保留，新素材单独处理；完成后恢复原组，也可点「待发 N 张 · 查看」来回切换。
 
@@ -140,7 +149,7 @@ Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能�
 
 ## 当前验证与边界
 
-- Windows 和 Android 0.4.10 已覆盖安装验证。Windows 0.4.12 安装包通过认证重连和连接状态测试。Android 0.4.13 已验证原签名、测试和安装包，真机待复测。
+- Windows 0.4.10 已覆盖安装验证，0.4.12 安装包通过认证重连和连接状态测试。Android 1.0.0 使用原发布签名，通过构建、静态检查和回归测试，真机界面待复测。
 - iPhone 1.1 正式版通过 19 项模拟器测试和 7 项 Swift 测试。TestFlight 80 另有连续截屏计数、收片和短暂展开提示，系统是否展开以真机表现为准。
 - 传输耗时取决于局域网、素材大小和处理耗时。系统保护的页面可能无法采集。
 

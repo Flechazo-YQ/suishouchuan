@@ -2,6 +2,12 @@
 
 各平台的正式版和预发行入口见 [首页的下载与版本](README.md#下载与版本)。0.4.8 是首次在 GitHub 发布安装包，以下也保留早期本地开发与验收记录。
 
+## 2026-11-25 · CtrlC Android 1.0.0
+
+- [Android 1.0.0 正式发布](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/android-v1.0.0)。首页标清相册、截屏和录屏入口，连拍显示当前张数，配对页把扫码置于首位。
+- 照片、视频和图集预览显示目标电脑，右上提供「发送」，图集高亮当前缩略图。
+- 沿用原安装身份和签名，可覆盖已有版本。打开时自动尝试连接上次配对的电脑。
+
 ## 2026-11-25 · CommandC iPhone 1.1 正式版
 
 - [App Store 免费版 1.1](https://apps.apple.com/us/app/commandc/id6835768173) 已在中国大陆以外的店面上线。打开 App 时自动连接上次配对的电脑，验证通过后保存其新地址。

@@ -14,8 +14,8 @@ android {
         applicationId "cn.local.imagebridge"
         minSdkVersion 26
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 17
-        versionName "0.4.13"
+        versionCode 18
+        versionName "1.0.0"
     }
     signingConfigs {
         release {
