@@ -4,8 +4,9 @@
 
 | 目录 | 内容 |
 | --- | --- |
-| `apps/desktop` | Electron + React + TypeScript，Windows托盘、局域网接收、图片/视频处理、剪贴板与缓存 |
+| `apps/desktop` | Electron + React + TypeScript，Windows CtrlV 与 macOS CommandV 共用的局域网接收端 |
 | `apps/mobile` | React Native + TypeScript；Android原生相机、分享、扫码、设备发现、屏幕采集、证书固定 |
+| `apps/ios` | SwiftUI iPhone CommandC，含系统分享与灵动岛扩展 |
 | `scripts` | 构建、媒体工具准备、防火墙与发布包一致性检查 |
 | `docs` | 使用、构建和缓存说明 |
 
@@ -18,7 +19,8 @@
 | `POST /v1/pair` | 一次性配对 |
 | `POST /v1/images` | 单图上传 |
 | `POST /v1/videos` | MP4上传 |
-| `POST /v1/batches` | 1–10张图集上传 |
+| `POST /v1/batches` | 图集上传。0.4.10 支持最多 10 张，新接收端预发行版支持最多 99 张 |
+| `GET /v1/capabilities` | 查询接收端允许的图集上限 |
 | `GET /v1/transfers/{id}` | 查询本人设备的接收/复制状态 |
 
 上传使用Bearer授权、请求ID和完整性校验。`received`仅表示已接收，`copied`才表示剪贴板写入已确认；重复已成功的请求不会再次覆盖剪贴板。单图使用系统图片格式，图集/视频使用文件剪贴板。电脑端可主动重新复制。
@@ -59,7 +61,7 @@ Windows中文项目路径可能影响Android原生构建，现有脚本同步到
 
 ## 数据与边界
 
-Windows程序安装到`%LOCALAPPDATA%\Programs\ImageBridge`，配置和媒体缓存位于`%APPDATA%\随手传`。0.4.9 将显示名与安装包名称改为 CtrlV，保留该数据目录、安装身份、Android applicationId 和协议标识，避免更新丢失配对；开机启动项改为新可执行文件。从 0.4.10 起 Android 端名为 CtrlC，Windows 端继续使用 CtrlV。Mac 端预留名称 CommandV。iPhone 版名为 CommandC，原生 SwiftUI 工程在 `apps/ios`，使用 GitHub macOS runner 编译、测试和签名上传 TestFlight，详见 [iPhone 开发与验收](IOS.md)。GitHub Release 中的 EXE / APK 仍只对应 Windows / Android。
+Windows CtrlV 安装到 `%LOCALAPPDATA%\Programs\ImageBridge`，配置和媒体缓存保留在 `%APPDATA%\随手传`。Android CtrlC 保留原 applicationId 和配对协议。Mac CommandV 通过 [Mac 构建工作流](https://github.com/Flechazo-YQ/suishouchuan/actions/workflows/mac.yml) 分别生成 Apple 芯片和 Intel 原生 ZIP，最低支持 macOS Ventura 13。iPhone CommandC 通过 macOS runner 编译、测试和签名。安装渠道及操作说明见 [首页的下载与版本](../README.md#下载与版本) 和 [iPhone 开发与验收](IOS.md)。
 
 这些运行数据不属于源码，不能公开上传。手机私有outbox只暂存待发素材；详情见[缓存规则](CACHE-POLICY.md)。
 

@@ -1,6 +1,22 @@
 # 版本演进
 
-按实际开发顺序说明每一步解决什么问题。推荐使用 **0.4.10**。0.4.8 是首次在 GitHub 发布安装包；早期版本是本地开发、安装或验证阶段，不代表当时已在 GitHub 发布，也不建议安装已知有问题的旧版。
+各平台的正式版和预发行入口见 [首页的下载与版本](README.md#下载与版本)。0.4.8 是首次在 GitHub 发布安装包，以下也保留早期本地开发与验收记录。
+
+## 2026-11-25 · CommandC iPhone 1.1 正式版
+
+- [App Store 免费版 1.1](https://apps.apple.com/us/app/commandc/id6835768173) 已在中国大陆以外的店面上线。打开 App 时自动连接上次配对的电脑，验证通过后保存其新地址。
+- 连拍与连续截屏共用 1–99 张的上限。点击灵动岛「查看」回 App，录屏中点击会结束录制并开始保存。主 App 和系统分享已支持英文。
+- TestFlight 1.1（80）另外测试连续截屏收片、数字滚动及由系统控制的短暂展开提示。实际呈现待真机复测。
+
+## 2026-11-24 · CommandV macOS 0.4.12 双架构预发行
+
+- [CommandV 0.4.12](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/commandv-macos-v0.4.12) 提供 Apple 芯片与 Intel 原生 ZIP，最低 macOS Ventura 13。两架构均通过配对、传输及剪贴板自检，尚未经过 Apple 公证。
+- 显示已配对手机的实际连接状态。超过 10 张的图集可作为一个文件夹粘贴。
+
+## 2026-11-23 · Windows 0.4.12 与 Android 0.4.13 预发行
+
+- [Windows CtrlV 0.4.12](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/receivers-v0.4.12) 按实际认证连接显示手机状态，支持最多 99 张的图集。
+- [Android CtrlC 0.4.13](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/android-v0.4.13) 在打开或回到前台时自动连接上次选中的电脑。新版仍可连接已配对的 0.4.10 接收端。
 
 ![Windows、Android、iPhone 和 Mac 的版本迭代历史图](docs/images/version-history.png)
 

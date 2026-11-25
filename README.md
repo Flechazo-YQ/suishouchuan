@@ -4,21 +4,28 @@
 
 在 Android 或 iPhone 上拍照、选图、连续截屏或录制短视频，通过局域网传给电脑。看到「已复制」后，在 Windows 按 **Ctrl+V**，在 Mac 按 **⌘V**，把素材粘贴到支持相应格式的输入框、文档或文件夹。
 
-**Windows / Android 当前发布版为 0.4.10。iPhone CommandC 为 TestFlight 1.0（31），Mac CommandV 为 Intel 0.4.10 测试版。**
+## 下载与版本
 
-Windows 接收端为 CtrlV，Android 手机端为 CtrlC，iPhone 端为 CommandC，Mac 接收端为 CommandV。传输在局域网内完成。Windows / Android 覆盖安装可沿用原配对和缓存。
+| 设备 | 正式版 | 预发行 / 内测 |
+| --- | --- | --- |
+| iPhone · CommandC | [App Store 1.1（免费）](https://apps.apple.com/us/app/commandc/id6835768173) | TestFlight 1.1（80），限已获邀请的测试者 |
+| Windows x64 · CtrlV | [0.4.10 EXE](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlV-Setup-0.4.10.exe) | [0.4.12](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/receivers-v0.4.12)，显示手机实际连接状态，支持较大图集 |
+| Android arm64 · CtrlC | [0.4.10 APK](https://github.com/Flechazo-YQ/suishouchuan/releases/download/v0.4.10/CtrlC-0.4.10-android-arm64.apk) | [0.4.13](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/android-v0.4.13)，打开 App 时自动连接上次使用的电脑 |
+| Mac · CommandV | 暂无正式版 | [0.4.12 双架构](https://github.com/Flechazo-YQ/suishouchuan/releases/tag/commandv-macos-v0.4.12)，Apple 芯片选 `arm64`，Intel 选 `x64` |
 
-[下载安装包](https://github.com/Flechazo-YQ/suishouchuan/releases/latest) · [一步步使用与场景示例](docs/USER-GUIDE.md) · [逐版更新说明](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md) · [CommandC iPhone 版](docs/IOS.md)
+CommandC 1.1 已在中国大陆以外的 App Store 店面上线，中国大陆店面暂不可下载。Mac 预发行包要求 macOS Ventura 13 或更新版本，采用测试签名，尚未经过 Apple 公证。
+
+[图文使用指南](docs/USER-GUIDE.md) · [iPhone 操作说明](docs/IOS.md) · [版本记录](CHANGELOG.md) · [开发与构建](docs/DEVELOPMENT.md)
 
 ## iPhone 与 Mac
 
 1. 将 iPhone 和 Mac 连到可互通的同一局域网。在 Mac 打开 CommandV，点左侧「＋ 配对手机」。在 iPhone 打开 CommandC，用「扫描配对二维码」扫 Mac 屏幕，核对电脑名称并确认。
 2. 在 iPhone 拍照，点右上角勾选并确认发送。Mac 显示「已复制」后，按 **⌘V**。单张照片可用 Mac「预览」的「文件 → 从剪贴板新建」打开。图集和视频可在 Finder 文件夹内粘贴。
-3. 在 iOS 27 上跨 App 截屏时，先在 CommandC 右下角开启屏幕采集。切到目标 App 后，**长按屏幕顶部的灵动岛**，点「截取」并向上轻扫收起面板。约 1.5 秒后计数增加。长按灵动岛点「查看」可预览并整组发送。
+3. 在配有灵动岛且运行 iOS 27 或更高版本的 iPhone 上，先在 CommandC 右下角开启屏幕采集。切到目标 App 后，**长按灵动岛**，点「截取」并向上轻扫收起面板。计数增加后可截下一张。长按灵动岛点「查看」可回 App 预览并整组发送。
 
 <img src="docs/images/mac-received.png" alt="2017 Intel Mac 上的 CommandV 已接收 iPhone 测试照片并显示已复制，设备信息和缩略图已遮挡" width="799" />
 
-Mac 测试包面向 macOS Ventura 13 及以上的 Intel Mac。已在 2017 MacBook Pro（Ventura 13.7.8）验证安装启动、iPhone 配对、单图接收和粘贴到另一个 Mac 应用。当前构建采用测试签名，尚未完成 Apple 公证。[Mac 构建与自检](https://github.com/Flechazo-YQ/suishouchuan/actions/workflows/mac.yml) · [Apple 端操作图库](docs/images/README.md) · [版本迭代历史图](docs/images/version-history.png)
+上图来自较早的 Intel Mac 真机测试，已验证 iPhone 配对、单图接收和跨应用粘贴。0.4.12 的 Apple 芯片和 Intel 安装包均通过原生 runner 的配对、传输与剪贴板自检。[Mac 双架构构建与自检](https://github.com/Flechazo-YQ/suishouchuan/actions/runs/45348491648) · [Apple 端操作图库](docs/images/README.md)
 
 ## 看图上手：安装 → 扫码配对 → 拍照上传 → 粘贴到 AI
 
@@ -37,7 +44,7 @@ Mac 测试包面向 macOS Ventura 13 及以上的 Intel Mac。已在 2017 MacBoo
 
 Windows 安装包也内置 APK，可通过电脑配对面板中的局域网下载地址安装。发布页提供 SHA-256 校验文件；下载源码 ZIP 不是安装软件。
 
-Android 最低声明支持 Android 8（API 26），当前真机验收设备为 Android 13 小米手机。不同厂商的权限页面可能不同。CommandC 可连接 Windows CtrlV 或 Intel Mac 上的 CommandV 测试版，功能与测试安装方式见 [iPhone 说明](docs/IOS.md)。下方界面教程对应 Android / Windows。
+Android 最低支持 Android 8（API 26）。不同厂商的权限页面可能不同。下方界面教程对应 Windows 和 Android 正式版。iPhone 操作参见 [CommandC 说明](docs/IOS.md)。
 
 ### 2. 电脑显示二维码，手机扫一扫
 
@@ -115,7 +122,7 @@ Android 最低声明支持 Android 8（API 26），当前真机验收设备为 A
 | 素材 | 电脑剪贴板内容 | 适合放到哪里 |
 | --- | --- | --- |
 | 单拍或系统分享的单张图片 | 系统图片 | 支持图片粘贴的 AI 输入框、文档、图片编辑器 |
-| 连拍、相册、截图图集（即使只有 1 张） | 一组独立图片文件 | 支持多文件粘贴的 AI 输入框；不拼长图、不打压缩包 |
+| 连拍、相册、截图图集（即使只有 1 张） | 一组独立图片文件。Mac 预发行版接收超过 10 张时会复制一个图集文件夹 | 支持文件粘贴的输入框或文件夹 |
 | 视频 | MP4 文件 | 接受视频文件的输入框，或先另存为再使用 |
 
 **Codex 桌面端已验证一次 Ctrl+V 出现 10 张独立图片。** ChatGPT 及其他客户端能否接收图片、一次接收多少张、是否支持视频，取决于目标客户端和输入框；Word/WPS 对多文件图集的处理也可能不同。传输成功不代表所有软件都支持相同粘贴方式。
@@ -127,16 +134,14 @@ Android 最低声明支持 Android 8（API 26），当前真机验收设备为 A
 - 手机不向系统相册保存新拍素材。待发文件暂存在 App 私有目录，上传成功或明确放弃后删除；来源相册原图不受影响。
 - 多组待发素材只保留在当前运行会话中，**不是永久相册**；进程重启会清理遗留文件。失败供手动重试，不在离线很久后突然自动补发。
 - 电脑照片、视频和缩略图共用 **100 MB（100,000,000 字节）**，超限后在后台按接收先后删除旧素材。图集整组淘汰，当前CtrlV复制的文件受到保护。
-- 单图最多 32 MiB、6400 万像素；每组最多 10 张且处理前后不超过 100 MB；录像/录屏最多 30 秒。
+- 单图最多 32 MiB、6400 万像素。单个图集最多 100 MB，录像或录屏最多 30 秒。0.4.10 接收端每组最多 10 张。CommandC 1.1 的连拍与连续截屏上限可设为 1–99 张，超过 10 张时需使用支持大图集的接收端预发行包。
 
 例如已缓存 99.27 MB，再收到 1.5 MB，会从最早收到的素材开始清理，直到回到预算内。新素材先校验和写入剪贴板，再后台清理；在途文件、解码临时文件和文件占用可能造成短暂额外空间。重要素材请另存为，缓存不作为备份。[完整缓存规则](docs/CACHE-POLICY.md)
 
 ## 当前验证与边界
 
-此前的 0.4.9 已通过 27 项自动化测试、两端类型检查和安装包一致性检查。Windows 已覆盖安装，验证原配对/证书/设置/缓存保留、开机启动路径更新、内置 APK 下载及图片/十图文件剪贴板；Android 已同签名覆盖安装 0.4.9（versionCode 14），原配对保留；当时的桌面及系统分享入口显示 CtrlV，0.4.10 改为 CtrlC。拍照和系统相册分享均已传到 Windows 原生剪贴板，独立读回的像素与接收图片一致，手机提示临时素材已清理。本轮未重跑完整录屏、图集和异常矩阵。
-
-0.4.8 已实际安装验证：拍摄、图集、相册独立发送、连续截图、录屏主动停止、连拍保留与切换、电脑文件剪贴板和手机临时文件清理。27 项自动化测试通过。30 秒录屏上限在前版实机通过，本版未修改该原生逻辑。
-
-局域网速度取决于网络、素材和处理耗时；最近样本相册小图 0.3 秒、截图 1.3 秒、录屏 4.3 秒、两张连拍 4.5 秒，**不承诺全部在 3 秒内完成**。系统保护页面可能无法采集；不提供跨公网中转、自动后台收集截图或自动粘贴。
+- Windows 和 Android 0.4.10 已覆盖安装验证。Windows 0.4.12 安装包通过认证重连和连接状态测试。Android 0.4.13 已验证原签名、测试和安装包，真机待复测。
+- iPhone 1.1 正式版通过 19 项模拟器测试和 7 项 Swift 测试。TestFlight 80 另有连续截屏计数、收片和短暂展开提示，系统是否展开以真机表现为准。
+- 传输耗时取决于局域网、素材大小和处理耗时。系统保护的页面可能无法采集。
 
 连接、权限或粘贴问题见 [使用指南](docs/USER-GUIDE.md)。反馈可到 [Issues](https://github.com/Flechazo-YQ/suishouchuan/issues)，附两端版本、系统版本和复现步骤，截图请先去掉私人内容。
